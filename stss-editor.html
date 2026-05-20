@@ -24,8 +24,8 @@
       --border:      #2e2e38;
       --border2:     #3a3a48;
       --text:        #d4d4e0;
-      --text-dim:    #5a5a70;
-      --text-muted:  #3a3a50;
+      --text-dim:    #9c9cb7;
+      --text-muted:  #4d4d69;
       --accent:      #e8a33a;   /* warm amber — the one pop of colour */
       --accent-dim:  #7a4d0f;
       --green:       #5dba7a;
@@ -521,7 +521,7 @@
 
     /* Assigned state: dimmed */
     .msg-row.assigned {
-      opacity: 0.38;
+      opacity: 0.6;
     }
     /* If assigned AND selected, let selection show through a little */
     .msg-row.assigned.selected {
@@ -1041,7 +1041,9 @@
     /* The "custom" swatch wraps a hidden native color input */
     .color-swatch-custom {
       position: relative;
-      overflow: hidden;
+      /* clip-path instead of overflow:hidden — avoids creating a stacking context
+         that interferes with the native color picker dialog on some browsers */
+      clip-path: inset(0 round 3px);
       background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
     }
     .color-swatch-custom input[type="color"] {
@@ -2891,6 +2893,9 @@
         setColor(nativeInput.value);
         onChange(nativeInput.value);
       });
+      // Stop clicks on the native input from bubbling to card/accordion headers,
+      // which would toggle them closed while the color picker is open.
+      nativeInput.addEventListener("click", e => e.stopPropagation());
       customSw.appendChild(nativeInput);
       swatchRow.appendChild(customSw);
 
@@ -3071,6 +3076,7 @@
     function setGlobal(field, value) {
       if (!project) return;
       project.globals[field] = value;
+      updateStylePreview();
       autosave();
     }
 
@@ -3184,7 +3190,7 @@
       colorLabel.className = "style-field";
       colorLabel.innerHTML = '<label>Text Color</label>';
       const colorContainer = document.createElement("div");
-      colorContainer.id = "color-picker-char-" + name.replace(/\s+/g, "_");
+      colorContainer.id = "color-picker-char-" + name.replace(/[^a-zA-Z0-9]/g, "_");
       colorLabel.appendChild(colorContainer);
       body.appendChild(colorLabel);
 
@@ -3192,20 +3198,20 @@
       charColorPickers[name] = buildColorPicker(
         colorContainer,
         char.text_color,
-        (hex) => { setChar(name, "text_color", hex || null); updateStylePreview(); }
+        (hex) => { setChar(name, "text_color", hex || null); }
       );
 
       // Text shadow
       body.appendChild(buildTextField(
         "Text Shadow", char.text_shadow || "",
         "e.g. 0 0 8px #ff69b4",
-        (v) => { setChar(name, "text_shadow", v || null); updateStylePreview(); }
+        (v) => { setChar(name, "text_shadow", v || null); }
       ));
 
       // Font family
       body.appendChild(buildFontField(
         name, char.font_family,
-        (v) => { setChar(name, "font_family", v || null); updateStylePreview(); }
+        (v) => { setChar(name, "font_family", v || null); }
       ));
 
       // Bubble background color
@@ -3219,21 +3225,21 @@
       buildColorPicker(
         bubbleBgContainer,
         char.bubble_bg_color || "",
-        (hex) => { setChar(name, "bubble_bg_color", hex || null); updateStylePreview(); }
+        (hex) => { setChar(name, "bubble_bg_color", hex || null); }
       );
 
       // Bubble background opacity
       body.appendChild(buildTextField(
         "Bubble Opacity", char.bubble_bg_opacity || "",
         "0 – 1, e.g. 0.45",
-        (v) => { setChar(name, "bubble_bg_opacity", v || null); updateStylePreview(); }
+        (v) => { setChar(name, "bubble_bg_opacity", v || null); }
       ));
 
       // Bubble CSS (advanced)
       body.appendChild(buildTextareaField(
         "Bubble CSS (advanced)", char.bubble_css || "",
         "Extra CSS for this character's bubbles…",
-        (v) => { setChar(name, "bubble_css", v || null); updateStylePreview(); }
+        (v) => { setChar(name, "bubble_css", v || null); }
       ));
 
       // Theme audio URL
@@ -3275,6 +3281,7 @@
     function setChar(name, field, value) {
       if (!project || !project.characters[name]) return;
       project.characters[name][field] = value;
+      updateStylePreview();
       autosave();
     }
 
