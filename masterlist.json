@@ -1,0 +1,9 @@
+{
+  "_comment": "STSS Reader story index. Each entry points to an author's own index file. To add your stories, submit a PR that adds one entry to this array.",
+  "indices": [
+    {
+      "name": "Wren",
+      "url": "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/indices/wren.json"
+    }
+  ]
+}
