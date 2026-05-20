@@ -1,0 +1,2797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STSS Reader</title>
+  <script src="stss-core.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Nunito:wght@400;600&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       STSS READER — CSS
+       Design: Immersive reading environment. Everything serves the
+       story. UI recedes; text and atmosphere lead.
+       Palette inherits from payload globals at runtime; the defaults
+       here are the same dark navy the editor ships with.
+    ================================================================ */
+
+    :root {
+      /* UI chrome — not overridden by payload styles */
+      --ui-bg:          rgba(10, 10, 18, 0.88);
+      --ui-bg-solid:    #0a0a12;
+      --ui-border:      rgba(255,255,255,0.1);
+      --ui-text:        #c8c8d8;
+      --ui-text-dim:    #666680;
+      --ui-accent:      #e8a33a;
+      --ui-accent-dim:  rgba(232,163,58,0.2);
+      --ui-red:         #c05050;
+      --ui-green:       #5dba7a;
+
+      /* Font */
+      --font-ui:        'IBM Plex Sans', sans-serif;
+      --font-mono:      'IBM Plex Mono', monospace;
+
+      /* Layout */
+      --sidebar-w:      300px;
+      --ctrl-size:      40px;
+      --vn-portrait-w:  35%;
+      --vn-text-w:      65%;
+
+      /* Transitions */
+      --t-bg:           0.6s ease;
+      --t-portrait:     0.4s ease;
+      --t-ui:           0.2s ease;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a12;
+      color: #e0e0e0;
+      font-family: Georgia, serif;
+    }
+
+    /* ================================================================
+       BACKGROUND LAYER
+       Sits behind everything. Background image/color is applied here.
+       Transition handles smooth scene changes.
+    ================================================================ */
+    #bg-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #1a1a2e;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transition: background-color var(--t-bg), background-image var(--t-bg);
+    }
+
+    /* Subtle vignette overlay — always present */
+    #bg-layer::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center,
+        transparent 40%,
+        rgba(0,0,0,0.45) 100%
+      );
+      pointer-events: none;
+    }
+
+    /* ================================================================
+       MAIN READER LAYOUT
+    ================================================================ */
+    #reader-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      align-items: stretch;
+    }
+
+    /* ================================================================
+       SIDEBAR
+    ================================================================ */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      height: 100%;
+      background: var(--ui-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid var(--ui-border);
+      display: flex;
+      flex-direction: column;
+      /* Width transition makes the flex siblings reflow as it collapses */
+      transition: width var(--t-ui), min-width var(--t-ui), border-color var(--t-ui);
+      z-index: 20;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #sidebar.collapsed {
+      width: 0;
+      min-width: 0;
+      border-right-color: transparent;
+    }
+
+    /* Sidebar header */
+    .sidebar-header {
+      padding: 1.25rem 1.25rem 0.75rem;
+      border-bottom: 1px solid var(--ui-border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-app-name {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ui-accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar-story-title {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--ui-text);
+      line-height: 1.3;
+    }
+
+    .sidebar-story-author {
+      font-size: 0.78rem;
+      color: var(--ui-text-dim);
+      margin-top: 0.2rem;
+      font-style: italic;
+    }
+
+    .sidebar-story-desc {
+      font-size: 0.78rem;
+      color: var(--ui-text-dim);
+      margin-top: 0.5rem;
+      line-height: 1.5;
+    }
+
+    /* Sidebar body (scrollable) */
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem 0;
+    }
+    .sidebar-body::-webkit-scrollbar { width: 4px; }
+    .sidebar-body::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-body::-webkit-scrollbar-thumb { background: var(--ui-border); border-radius: 2px; }
+
+    /* Sidebar section */
+    .sb-section {
+      border-bottom: 1px solid var(--ui-border);
+      padding: 0.6rem 0;
+    }
+
+    .sb-section-title {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ui-text-dim);
+      padding: 0 1.25rem 0.4rem;
+    }
+
+    /* Layout toggle */
+    .layout-toggle-row {
+      display: flex;
+      margin: 0 1.25rem;
+      border: 1px solid var(--ui-border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .layout-btn {
+      flex: 1;
+      padding: 0.4rem;
+      background: none;
+      border: none;
+      color: var(--ui-text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: background var(--t-ui), color var(--t-ui);
+      text-align: center;
+    }
+    .layout-btn:first-child { border-right: 1px solid var(--ui-border); }
+    .layout-btn.active {
+      background: var(--ui-accent-dim);
+      color: var(--ui-accent);
+    }
+    .layout-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.05);
+      color: var(--ui-text);
+    }
+
+    /* Sidebar action buttons */
+    .sb-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.45rem 1.25rem;
+      background: none;
+      border: none;
+      color: var(--ui-text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-align: left;
+      transition: color var(--t-ui), background var(--t-ui);
+    }
+    .sb-btn:hover {
+      color: var(--ui-text);
+      background: rgba(255,255,255,0.04);
+    }
+    .sb-btn .sb-btn-icon {
+      font-size: 0.85rem;
+      width: 1.2em;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* Search placeholder */
+    .sb-search-wrap {
+      padding: 0.25rem 1.25rem;
+    }
+    .sb-search-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--ui-border);
+      border-radius: 3px;
+      color: var(--ui-text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      padding: 0.35rem 0.6rem;
+      outline: none;
+      cursor: not-allowed;
+    }
+    .sb-search-note {
+      font-size: 0.65rem;
+      color: var(--ui-text-dim);
+      padding: 0.2rem 1.25rem 0;
+      font-style: italic;
+      font-family: var(--font-mono);
+    }
+
+    /* Table of contents */
+    #toc-container {
+      padding: 0 0 0.25rem;
+    }
+
+    .toc-node {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.3rem 1.25rem;
+      color: var(--ui-text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      transition: color var(--t-ui), background var(--t-ui);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toc-node:hover {
+      color: var(--ui-text);
+      background: rgba(255,255,255,0.04);
+    }
+    .toc-node.active {
+      color: var(--ui-accent);
+    }
+    .toc-node-type {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      color: var(--ui-text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-right: 0.4rem;
+    }
+    .toc-node.active .toc-node-type {
+      color: var(--ui-accent);
+      opacity: 0.7;
+    }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      flex-shrink: 0;
+      padding: 0.75rem 1.25rem;
+      border-top: 1px solid var(--ui-border);
+    }
+
+    .sidebar-load-btn {
+      width: 100%;
+      background: var(--ui-accent-dim);
+      border: 1px solid rgba(232,163,58,0.4);
+      color: var(--ui-accent);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background var(--t-ui);
+    }
+    .sidebar-load-btn:hover { background: rgba(232,163,58,0.15); }
+
+    /* ================================================================
+       FLOATING CONTROLS
+       Fixed corner overlay: sidebar toggle, mute, bookmark
+    ================================================================ */
+    #float-controls {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .fctl-btn {
+      width: var(--ctrl-size);
+      height: var(--ctrl-size);
+      background: var(--ui-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      color: var(--ui-text-dim);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--t-ui), border-color var(--t-ui), background var(--t-ui);
+      position: relative;
+    }
+    .fctl-btn:hover {
+      color: var(--ui-text);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .fctl-btn.active {
+      color: var(--ui-accent);
+      border-color: rgba(232,163,58,0.4);
+    }
+
+    /* Volume slider panel */
+    #volume-panel {
+      position: absolute;
+      right: calc(var(--ctrl-size) + 0.5rem);
+      top: 0;
+      background: var(--ui-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      white-space: nowrap;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #volume-panel.open {
+      display: flex;
+    }
+    #volume-panel label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--ui-text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    #volume-slider {
+      width: 80px;
+      accent-color: var(--ui-accent);
+    }
+
+    /* Bookmark dropdown */
+    #bookmark-panel {
+      display: none;
+      position: absolute;
+      right: calc(var(--ctrl-size) + 0.5rem);
+      top: 0;
+      background: var(--ui-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      width: 280px;
+      max-height: 70vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex-direction: column;
+    }
+    #bookmark-panel::-webkit-scrollbar { width: 4px; }
+    #bookmark-panel::-webkit-scrollbar-track { background: transparent; }
+    #bookmark-panel::-webkit-scrollbar-thumb { background: var(--ui-border); border-radius: 2px; }
+    #bookmark-panel.open { display: flex; }
+
+    /* Fixed nav items at top */
+    .bm-special {
+      padding: 0.45rem 0.75rem;
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--ui-border);
+      color: var(--ui-accent);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      cursor: pointer;
+      text-align: left;
+      transition: background var(--t-ui);
+      width: 100%;
+      letter-spacing: 0.04em;
+    }
+    .bm-special:hover { background: var(--ui-accent-dim); }
+
+    /* Empty state */
+    .bm-empty {
+      padding: 0.75rem;
+      font-size: 0.72rem;
+      color: var(--ui-text-dim);
+      font-style: italic;
+      font-family: var(--font-ui);
+      text-align: center;
+      border-top: 1px solid var(--ui-border);
+    }
+
+    /* Bookmark card */
+    .bm-card {
+      padding: 0.55rem 0.75rem;
+      border-top: 1px solid var(--ui-border);
+      cursor: pointer;
+      transition: background var(--t-ui);
+    }
+    .bm-card:hover { background: rgba(255,255,255,0.04); }
+
+    .bm-card-top {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+    .bm-card-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--ui-text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bm-card-index {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ui-text-dim);
+      flex-shrink: 0;
+    }
+    .bm-card-del {
+      background: none;
+      border: none;
+      color: var(--ui-text-dim);
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0 0.1rem;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color var(--t-ui);
+    }
+    .bm-card-del:hover { color: var(--ui-red); }
+
+    .bm-card-location {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ui-accent);
+      margin-bottom: 0.25rem;
+      opacity: 0.8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bm-card-preview {
+      font-size: 0.73rem;
+      color: var(--ui-text-dim);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Bookmark hint icon on messages */
+    .msg-bm-hint {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.3rem;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: auto;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1;
+      filter: grayscale(1);
+    }
+    .msg-wrap:hover .msg-bm-hint { opacity: 0.6; }
+    .msg-bm-hint.bookmarked {
+      opacity: 1 !important;
+      filter: none;
+    }
+
+    /* ================================================================
+       LOADING SCREEN
+    ================================================================ */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: #0a0a12;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      transition: opacity 0.4s ease;
+    }
+    #loading-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-app-name {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ui-accent);
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(232,163,58,0.2);
+      border-top-color: var(--ui-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-status {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ui-text-dim);
+      text-align: center;
+      max-width: 320px;
+    }
+
+    /* Drop zone — shown when no story is loaded */
+    #drop-zone {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: #0a0a12;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+    #drop-zone.active { display: flex; }
+
+    .dz-title {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--ui-text);
+    }
+    .dz-sub {
+      font-size: 0.9rem;
+      color: var(--ui-text-dim);
+      font-family: var(--font-ui);
+    }
+    .dz-box {
+      margin-top: 1rem;
+      border: 2px dashed rgba(232,163,58,0.35);
+      border-radius: 8px;
+      padding: 2.5rem 4rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--t-ui), background var(--t-ui);
+    }
+    #drop-zone.dragging .dz-box,
+    .dz-box:hover {
+      border-color: var(--ui-accent);
+      background: var(--ui-accent-dim);
+    }
+    .dz-box-text {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ui-text-dim);
+      letter-spacing: 0.08em;
+    }
+    #drop-zone-file { display: none; }
+
+    .dz-url-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .dz-url-input {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--ui-border);
+      border-radius: 3px;
+      color: var(--ui-text);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.4rem 0.75rem;
+      outline: none;
+      width: 360px;
+      transition: border-color var(--t-ui);
+    }
+    .dz-url-input:focus { border-color: rgba(232,163,58,0.4); }
+    .dz-url-btn {
+      background: var(--ui-accent-dim);
+      border: 1px solid rgba(232,163,58,0.4);
+      color: var(--ui-accent);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background var(--t-ui);
+    }
+    .dz-url-btn:hover { background: rgba(232,163,58,0.15); }
+
+    .dz-error {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ui-red);
+      margin-top: 0.5rem;
+      min-height: 1em;
+    }
+
+    /* ================================================================
+       FULLSCREEN MODE LAYOUT
+    ================================================================ */
+    #mode-fullscreen {
+      display: none;
+      flex: 1;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+    #mode-fullscreen.active { display: flex; }
+    #mode-fullscreen::-webkit-scrollbar { width: 6px; }
+    #mode-fullscreen::-webkit-scrollbar-track { background: transparent; }
+    #mode-fullscreen::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+
+    /* Message stream in fullscreen mode:
+       width 75% of the available scroll container, centered.
+       margin: 0 auto does the centering once we give it a real width. */
+    #fs-message-stream {
+      width: 85%;
+      max-width: 1000px;
+      min-width: 0;
+      margin: 0 auto;
+      padding: 4rem 0 8rem;
+      flex-shrink: 0;
+    }
+
+    /* ================================================================
+       VN MODE LAYOUT
+    ================================================================ */
+    #mode-vn {
+      display: none;
+      flex: 1;
+      height: 100%;
+    }
+    #mode-vn.active { display: flex; }
+
+    /* Left portrait panel */
+    #vn-portrait-panel {
+      width: var(--vn-portrait-w);
+      height: 100%;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Portrait image — contains within the panel (stops at whichever
+       dimension fills first), centered both axes. Two slots for crossfade. */
+    .vn-portrait-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center center;
+      transition: opacity var(--t-portrait);
+    }
+    .vn-portrait-img.hidden  { opacity: 0; }
+    .vn-portrait-img.visible { opacity: 1; }
+
+    /* Right text panel */
+    #vn-text-panel {
+      width: var(--vn-text-w);
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      display: flex;
+      flex-direction: column;
+      padding: 3rem 2.5rem 8rem 2rem;
+    }
+    #vn-text-panel::-webkit-scrollbar { width: 6px; }
+    #vn-text-panel::-webkit-scrollbar-track { background: transparent; }
+    #vn-text-panel::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+
+    #vn-message-stream { width: 100%; }
+
+    /* ================================================================
+       MESSAGE BUBBLE — shared by both modes
+    ================================================================ */
+    .msg-wrap {
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Section heading injected by structure */
+    .structure-heading {
+      margin: 2.5rem 0 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .structure-heading-type {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ui-text-dim);
+      margin-bottom: 0.2rem;
+    }
+    .structure-heading-title {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
+    }
+
+    /* Bubble header: small avatar (fullscreen only) + speaker name */
+    .bubble-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .bubble-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    .bubble-speaker {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      opacity: 0.8;
+    }
+
+    /* The bubble itself */
+    .bubble-body {
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      line-height: 1.75;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      background: rgba(0,0,0,0.45); /* default; overridden per-message */
+    }
+
+    /* In VN mode, hide the small avatar — the big portrait handles that */
+    #mode-vn .bubble-avatar { display: none; }
+
+    /* Paragraph spacing within a bubble */
+    .bubble-body p {
+      margin-bottom: 0.75em;
+    }
+    .bubble-body p:last-child { margin-bottom: 0; }
+
+    /* ================================================================
+       CONTEXT MENU (right-click / long-press bookmark)
+    ================================================================ */
+    #ctx-menu {
+      display: none;
+      position: fixed;
+      z-index: 200;
+      background: var(--ui-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--ui-border);
+      border-radius: 5px;
+      overflow: hidden;
+      min-width: 160px;
+    }
+    #ctx-menu.open { display: block; }
+
+    .ctx-item {
+      padding: 0.45rem 0.9rem;
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      color: var(--ui-text-dim);
+      cursor: pointer;
+      border-bottom: 1px solid var(--ui-border);
+      transition: color var(--t-ui), background var(--t-ui);
+      background: none;
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      width: 100%;
+      text-align: left;
+    }
+    .ctx-item:last-child { border-bottom: none; }
+    .ctx-item:hover {
+      color: var(--ui-text);
+      background: rgba(255,255,255,0.05);
+    }
+    .ctx-item.danger { color: var(--ui-red); }
+    .ctx-item.danger:hover { background: rgba(192,80,80,0.08); }
+
+    /* ================================================================
+       MISCELLANEOUS
+    ================================================================ */
+
+    /* Scroll sentinel — invisible element at end of stream for "end" bookmark */
+    .scroll-sentinel { height: 1px; }
+
+    /* ================================================================
+       SEARCH OVERLAY
+    ================================================================ */
+    #search-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+    #search-overlay.open { display: flex; }
+
+    #search-panel {
+      background: var(--ui-bg-solid);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      width: min(680px, 92vw);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      animation: searchIn 0.18s ease;
+    }
+    @keyframes searchIn {
+      from { transform: translateY(12px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    #search-header {
+      display: flex;
+      align-items: center;
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 1px solid var(--ui-border);
+      flex-shrink: 0;
+      gap: 0.75rem;
+    }
+    #search-title {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ui-accent);
+      flex: 1;
+    }
+    #btn-search-close {
+      background: none;
+      border: 1px solid var(--ui-border);
+      color: var(--ui-text-dim);
+      font-size: 0.8rem;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--t-ui), border-color var(--t-ui);
+      flex-shrink: 0;
+    }
+    #btn-search-close:hover { color: var(--ui-text); border-color: rgba(255,255,255,0.2); }
+
+    #search-input-row {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--ui-border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    #search-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--ui-text);
+      font-family: var(--font-ui);
+      font-size: 1rem;
+      caret-color: var(--ui-accent);
+    }
+    #search-input::placeholder { color: var(--ui-text-dim); }
+
+    .search-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(232,163,58,0.2);
+      border-top-color: var(--ui-accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    #search-status {
+      padding: 0.4rem 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--ui-text-dim);
+      letter-spacing: 0.06em;
+      min-height: 1.8rem;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #search-status.error { color: var(--ui-red); }
+
+    #search-results {
+      overflow-y: auto;
+      flex: 1;
+    }
+    #search-results::-webkit-scrollbar { width: 4px; }
+    #search-results::-webkit-scrollbar-track { background: transparent; }
+    #search-results::-webkit-scrollbar-thumb { background: var(--ui-border); border-radius: 2px; }
+
+    /* Author group */
+    .sr-author-group {
+      border-bottom: 1px solid var(--ui-border);
+    }
+    .sr-author-group:last-child { border-bottom: none; }
+
+    .sr-author-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.25rem;
+      cursor: pointer;
+      transition: background var(--t-ui);
+      user-select: none;
+    }
+    .sr-author-header:hover { background: rgba(255,255,255,0.03); }
+
+    .sr-author-toggle {
+      font-size: 0.6rem;
+      color: var(--ui-text-dim);
+      transition: transform var(--t-ui);
+      flex-shrink: 0;
+      width: 0.8rem;
+    }
+    .sr-author-group.open .sr-author-toggle { transform: rotate(90deg); }
+
+    .sr-author-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ui-text);
+      flex: 1;
+    }
+    .sr-author-count {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ui-text-dim);
+    }
+    .sr-author-loading {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ui-text-dim);
+      font-style: italic;
+    }
+    .sr-author-error {
+      font-size: 0.65rem;
+      color: var(--ui-red);
+      font-family: var(--font-mono);
+    }
+
+    /* Story list under an author */
+    .sr-story-list {
+      display: none;
+      flex-direction: column;
+    }
+    .sr-author-group.open .sr-story-list { display: flex; }
+
+    .sr-story-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 1.25rem 0.6rem 2.5rem;
+      cursor: pointer;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      transition: background var(--t-ui);
+    }
+    .sr-story-item:hover { background: rgba(255,255,255,0.04); }
+    .sr-story-item.hidden { display: none; }
+
+    .sr-story-body { flex: 1; min-width: 0; }
+
+    .sr-story-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ui-text);
+      margin-bottom: 0.15rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sr-story-desc {
+      font-size: 0.73rem;
+      color: var(--ui-text-dim);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .sr-story-load-btn {
+      background: var(--ui-accent-dim);
+      border: 1px solid rgba(232,163,58,0.35);
+      color: var(--ui-accent);
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 3px;
+      cursor: pointer;
+      flex-shrink: 0;
+      align-self: center;
+      transition: background var(--t-ui);
+      white-space: nowrap;
+    }
+    .sr-story-load-btn:hover { background: rgba(232,163,58,0.15); }
+
+    /* Highlight matched text */
+    .sr-match { color: var(--ui-accent); font-weight: 600; }
+
+    /* Empty search state */
+    .sr-empty {
+      padding: 2rem 1.25rem;
+      text-align: center;
+      color: var(--ui-text-dim);
+      font-size: 0.82rem;
+      font-style: italic;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Background layer -->
+  <div id="bg-layer"></div>
+
+  <!-- Loading screen -->
+  <div id="loading-screen">
+    <div class="loading-app-name">STSS Reader</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-status" id="loading-status">Initialising…</div>
+  </div>
+
+  <!-- Drop zone (shown when no story loaded) -->
+  <div id="drop-zone">
+    <div class="dz-title">STSS Reader</div>
+    <div class="dz-sub">Load a story payload to begin reading</div>
+    <div class="dz-box" id="dz-drop-box">
+      <div class="dz-box-text">Drop payload JSON here<br>or click to browse</div>
+      <input type="file" id="drop-zone-file" accept=".json">
+    </div>
+    <div class="dz-url-row">
+      <input type="text" class="dz-url-input" id="dz-url-input"
+             placeholder="…or paste a payload URL">
+      <button class="dz-url-btn" id="dz-url-btn">Load URL</button>
+    </div>
+    <button class="dz-url-btn" id="dz-search-btn" style="margin-top:0.5rem;">⊞ Search Stories</button>
+    <div class="dz-error" id="dz-error"></div>
+  </div>
+
+  <!-- Main reader root (hidden until story loads) -->
+  <div id="reader-root" style="display:none;">
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-app-name">STSS Reader</div>
+        <div class="sidebar-story-title" id="sb-title">—</div>
+        <div class="sidebar-story-author" id="sb-author"></div>
+        <div class="sidebar-story-desc" id="sb-desc"></div>
+      </div>
+
+      <div class="sidebar-body">
+
+        <!-- Layout -->
+        <div class="sb-section">
+          <div class="sb-section-title">Layout</div>
+          <div class="layout-toggle-row">
+            <button class="layout-btn active" id="btn-layout-fullscreen">Fullscreen</button>
+            <button class="layout-btn" id="btn-layout-vn">Visual Novel</button>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="sb-section">
+          <button class="sb-btn" id="btn-download">
+            <span class="sb-btn-icon">↓</span> Download Payload
+          </button>
+          <button class="sb-btn" id="btn-load-new">
+            <span class="sb-btn-icon">⊕</span> Load New Story
+          </button>
+        </div>
+
+        <!-- Search stories -->
+        <div class="sb-section">
+          <button class="sb-btn" id="btn-search-stories">
+            <span class="sb-btn-icon">⊞</span> Search Stories
+          </button>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="sb-section" style="border-bottom:none;">
+          <div class="sb-section-title">Contents</div>
+          <div id="toc-container"></div>
+        </div>
+
+      </div><!-- /sidebar-body -->
+
+      <div class="sidebar-footer">
+        <input type="file" id="sidebar-file-input" accept=".json" style="display:none">
+      </div>
+    </div><!-- /sidebar -->
+
+    <!-- Fullscreen mode -->
+    <div id="mode-fullscreen" class="active">
+      <div id="fs-message-stream"></div>
+    </div>
+
+    <!-- VN mode -->
+    <div id="mode-vn">
+      <!-- Portrait area (left) -->
+      <div id="vn-portrait-panel">
+        <img class="vn-portrait-img hidden" id="vn-portrait-a" src="" alt="">
+        <img class="vn-portrait-img hidden" id="vn-portrait-b" src="" alt="">
+      </div>
+      <!-- Text area (right) -->
+      <div id="vn-text-panel">
+        <div id="vn-message-stream"></div>
+      </div>
+    </div>
+
+  </div><!-- /reader-root -->
+
+  <!-- Search Stories Overlay -->
+  <div id="search-overlay">
+    <div id="search-panel">
+
+      <div id="search-header">
+        <div id="search-title">Search Stories</div>
+        <button id="btn-search-close">✕</button>
+      </div>
+
+      <div id="search-input-row">
+        <input type="text" id="search-input" placeholder="Search by title, author, or description…" autocomplete="off" spellcheck="false">
+        <div id="search-spinner" class="search-spinner" style="display:none;"></div>
+      </div>
+
+      <div id="search-status"></div>
+
+      <div id="search-results"></div>
+
+    </div>
+  </div>
+
+  <!-- Floating controls -->
+  <div id="float-controls">
+    <button class="fctl-btn" id="btn-sidebar-toggle" title="Toggle sidebar">☰</button>
+    <button class="fctl-btn" id="btn-mute" title="Mute/unmute" style="display:none;">🔊</button>
+    <div style="position:relative;">
+      <button class="fctl-btn" id="btn-bookmark" title="Bookmarks">🔖</button>
+      <div id="volume-panel" style="position:absolute;right:calc(var(--ctrl-size) + 0.5rem);top:0;">
+        <label>Vol</label>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+      </div>
+      <div id="bookmark-panel"></div>
+    </div>
+  </div>
+
+  <!-- Context menu -->
+  <div id="ctx-menu">
+    <button class="ctx-item" id="ctx-bookmark">Bookmark this message</button>
+    <button class="ctx-item" id="ctx-bookmark-label">Bookmark with label…</button>
+  </div>
+
+  <!-- Hidden audio elements -->
+  <audio id="audio-music" loop></audio>
+  <audio id="audio-sting"></audio>
+
+  <script>
+  // ==========================================================================
+  // STSS READER — JavaScript
+  // All button events wired via addEventListener. No inline handlers.
+  // ==========================================================================
+
+  "use strict";
+
+  // --------------------------------------------------------------------------
+  // STATE
+  // --------------------------------------------------------------------------
+
+  let project        = null;   // loaded project object
+  let storyId        = null;   // hash key for localStorage
+  let storyUrl       = null;   // URL if loaded from URL, else null
+  let flatOrder      = [];     // ordered send_date keys from STSS.getFlatMessageOrder
+  let layoutMode     = "fullscreen"; // "fullscreen" | "vn"
+  let isMuted        = false;
+  let currentMusic   = null;   // URL of currently playing track
+  let bookmarks      = [];     // [{ key, label }]
+  let scrollPos      = 0;      // saved scroll position
+  let currentScrollEl = null;  // the scroll container for the active layout
+  let activeTocKey   = null;   // send_date key at the viewport midpoint
+
+  // VN portrait state
+  let vnActiveSlot   = "a";    // "a" | "b" — which img element is visible
+  let vnCurrentPortrait = null; // current portrait hash/url
+
+  // Context menu target
+  let ctxTargetKey   = null;   // send_date key of right-clicked message
+
+  // Long-press timer for mobile
+  let longPressTimer = null;
+
+  // IntersectionObserver for style triggers and ToC tracking
+  let triggerObserver = null;
+  let tocObserver     = null;
+
+  // --------------------------------------------------------------------------
+  // SECTION 1: LOADING
+  // --------------------------------------------------------------------------
+
+  /**
+   * Entry point. Checks for ?story= query param first, then shows drop zone.
+   */
+  function init() {
+    setLoadingStatus("Initialising…");
+
+    const params   = new URLSearchParams(window.location.search);
+    const storyParam = params.get("story");
+
+    if (storyParam) {
+      setLoadingStatus("Fetching story…");
+      fetchAndLoad(storyParam);
+    } else {
+      // No URL param — show drop zone
+      hideLoading();
+      showDropZone();
+    }
+  }
+
+  /**
+   * Fetches a payload JSON from a URL and loads it.
+   */
+  function fetchAndLoad(url) {
+    setLoadingStatus("Fetching from " + url);
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text();
+      })
+      .then(text => {
+        storyUrl = url;
+        loadProjectText(text);
+      })
+      .catch(err => {
+        showDropZone("Could not fetch story: " + err.message);
+        hideLoading();
+      });
+  }
+
+  /**
+   * Parses and loads a project from JSON text.
+   */
+  function loadProjectText(text) {
+    try {
+      project   = STSS.importProject(text);
+    } catch(e) {
+      showDropZone("Invalid payload: " + e.message);
+      hideLoading();
+      return;
+    }
+
+    // Compute storyId from URL or title
+    storyId = "stss_reader_" + STSS.djb2Hash(storyUrl || project.meta.title || "untitled");
+
+    // Restore saved state (layout mode, scroll, bookmarks)
+    loadSavedState();
+
+    // Build reading order
+    flatOrder = STSS.getFlatMessageOrder(project.structure);
+
+    // Check if any music URLs exist in the payload
+    const hasMusic = checkForMusic();
+    if (hasMusic) {
+      document.getElementById("btn-mute").style.display = "flex";
+    }
+
+    // Render everything
+    populateSidebar();
+    renderMessages();
+    applyInitialState();
+    setupObservers();
+    syncBookmarkIcons();
+
+    // Show the reader
+    hideLoading();
+    hideDropZone();
+    document.getElementById("reader-root").style.display = "flex";
+
+    // Restore scroll position after render
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => restoreScroll());
+    });
+  }
+
+  function setLoadingStatus(msg) {
+    document.getElementById("loading-status").textContent = msg;
+  }
+
+  function hideLoading() {
+    const el = document.getElementById("loading-screen");
+    el.classList.add("fade-out");
+    setTimeout(() => { el.style.display = "none"; }, 450);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 2: DROP ZONE
+  // --------------------------------------------------------------------------
+
+  function showDropZone(errorMsg) {
+    document.getElementById("drop-zone").classList.add("active");
+    if (errorMsg) {
+      document.getElementById("dz-error").textContent = errorMsg;
+    }
+  }
+
+  function hideDropZone() {
+    document.getElementById("drop-zone").classList.remove("active");
+    document.getElementById("dz-error").textContent = "";
+  }
+
+  function handleDropZoneFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      storyUrl = null;
+      document.getElementById("loading-screen").style.display = "flex";
+      document.getElementById("loading-screen").classList.remove("fade-out");
+      setLoadingStatus("Loading story…");
+      hideDropZone();
+      loadProjectText(e.target.result);
+    };
+    reader.readAsText(file);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 3: SIDEBAR & META
+  // --------------------------------------------------------------------------
+
+  function populateSidebar() {
+    const meta = project.meta;
+    document.getElementById("sb-title").textContent  = meta.title  || "Untitled";
+    document.getElementById("sb-author").textContent = meta.author ? "by " + meta.author : "";
+    document.getElementById("sb-desc").textContent   = meta.description || "";
+
+    // Update browser tab title
+    document.title = (meta.title || "Story") + " — STSS Reader";
+
+    buildToC();
+  }
+
+  /**
+   * Builds the table of contents from the structure tree.
+   * Clickable nodes jump to the first message of that node.
+   */
+  function buildToC() {
+    const container = document.getElementById("toc-container");
+    container.innerHTML = "";
+
+    function walk(nodes, depth) {
+      for (const node of nodes) {
+        const btn = document.createElement("button");
+        btn.className = "toc-node";
+        btn.style.paddingLeft = (1.25 + depth * 0.75) + "rem";
+        btn.dataset.nodeId = node.id;
+
+        const typeSpan = document.createElement("span");
+        typeSpan.className   = "toc-node-type";
+        typeSpan.textContent = node.type;
+
+        btn.appendChild(typeSpan);
+        btn.appendChild(document.createTextNode(node.title));
+        btn.addEventListener("click", () => jumpToNode(node.id));
+        container.appendChild(btn);
+
+        if (node.children.length > 0) {
+          walk(node.children, depth + 1);
+        }
+      }
+    }
+
+    walk(project.structure, 0);
+  }
+
+  /**
+   * Scrolls to the first message belonging to a given node id.
+   */
+  function jumpToNode(nodeId) {
+    // Find the first message key that belongs to this node (or any descendant)
+    const node = STSS.findNodeById(project.structure, nodeId);
+    if (!node) return;
+
+    // Collect all message keys in this subtree
+    const keys = [];
+    function collectKeys(n) {
+      keys.push(...n.messages);
+      for (const c of n.children) collectKeys(c);
+    }
+    collectKeys(node);
+
+    if (!keys.length) return;
+
+    // Find first key that's in flatOrder
+    const firstKey = flatOrder.find(k => keys.includes(k));
+    if (!firstKey) return;
+
+    scrollToMessage(firstKey);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 4: RENDER MESSAGES
+  // --------------------------------------------------------------------------
+
+  /**
+   * Renders all messages into both stream containers.
+   * The active layout mode controls which one is visible.
+   */
+  function renderMessages() {
+    const fsStream  = document.getElementById("fs-message-stream");
+    const vnStream  = document.getElementById("vn-message-stream");
+
+    fsStream.innerHTML = "";
+    vnStream.innerHTML = "";
+
+    if (!flatOrder.length) {
+      const empty = document.createElement("p");
+      empty.style.cssText = "color:rgba(255,255,255,0.3);font-style:italic;padding:4rem 0;text-align:center;";
+      empty.textContent = "No messages in this story's structure.";
+      fsStream.appendChild(empty.cloneNode(true));
+      vnStream.appendChild(empty);
+      return;
+    }
+
+    // Build a lookup: first message key → node, for headings
+    const nodeFirstMsg = buildNodeFirstMsgMap();
+
+    for (const key of flatOrder) {
+      const msg = project.messages[key];
+      if (!msg || msg.hidden) continue;
+
+      // Inject structure heading if this is the first message in a node
+      if (nodeFirstMsg[key]) {
+        const node = nodeFirstMsg[key];
+        const headingFS = buildStructureHeading(node);
+        const headingVN = buildStructureHeading(node);
+        headingFS.dataset.nodeId = node.id;
+        headingVN.dataset.nodeId = node.id;
+        fsStream.appendChild(headingFS);
+        vnStream.appendChild(headingVN);
+      }
+
+      const bubbleFS = buildMessageBubble(key);
+      const bubbleVN = buildMessageBubble(key);
+      fsStream.appendChild(bubbleFS);
+      vnStream.appendChild(bubbleVN);
+    }
+
+    // Sentinels for bookmark "jump to end"
+    const sentFS = document.createElement("div");
+    sentFS.className = "scroll-sentinel";
+    sentFS.id = "sentinel-end-fs";
+    fsStream.appendChild(sentFS);
+
+    const sentVN = document.createElement("div");
+    sentVN.className = "scroll-sentinel";
+    sentVN.id = "sentinel-end-vn";
+    vnStream.appendChild(sentVN);
+  }
+
+  /**
+   * Builds a map of send_date key → node for the FIRST message in each leaf node.
+   * Used to inject structure headings at the right spots.
+   */
+  function buildNodeFirstMsgMap() {
+    const map = {};
+    function walk(nodes) {
+      for (const node of nodes) {
+        if (node.children.length > 0) {
+          walk(node.children);
+        } else {
+          if (node.messages.length > 0) {
+            map[node.messages[0]] = node;
+          }
+        }
+      }
+    }
+    walk(project.structure);
+    return map;
+  }
+
+  /**
+   * Builds a section heading element for a structure node.
+   */
+  function buildStructureHeading(node) {
+    const wrap = document.createElement("div");
+    wrap.className = "structure-heading";
+
+    const typeEl = document.createElement("div");
+    typeEl.className   = "structure-heading-type";
+    typeEl.textContent = node.type;
+
+    const titleEl = document.createElement("div");
+    titleEl.className   = "structure-heading-title";
+    titleEl.textContent = node.title;
+
+    wrap.appendChild(typeEl);
+    wrap.appendChild(titleEl);
+    return wrap;
+  }
+
+  /**
+   * Builds a message bubble element for a single send_date key.
+   */
+  function buildMessageBubble(key) {
+    const msg   = project.messages[key];
+    const style = STSS.resolveStyle(project, key);
+
+    const wrap = document.createElement("div");
+    wrap.className  = "msg-wrap";
+    wrap.dataset.key = key;
+
+    // Bookmark hint — clicking it directly adds/removes the bookmark
+    const bmHint = document.createElement("span");
+    bmHint.className   = "msg-bm-hint";
+    bmHint.textContent = "🔖";
+    bmHint.title       = "Bookmark this message";
+    bmHint.addEventListener("click", e => {
+      e.stopPropagation();
+      if (bookmarks.find(b => b.key === key)) {
+        removeBookmark(key);
+      } else {
+        addBookmark(key);
+      }
+      // Update icon state on both stream copies
+      document.querySelectorAll(`.msg-wrap[data-key="${CSS.escape(key)}"] .msg-bm-hint`)
+        .forEach(el => el.classList.toggle("bookmarked", !!bookmarks.find(b => b.key === key)));
+    });
+    wrap.appendChild(bmHint);
+
+    // Bubble header (avatar + speaker name)
+    const header = document.createElement("div");
+    header.className = "bubble-header";
+
+    // Avatar (small, for fullscreen mode)
+    const portraitSrc = STSS.resolveImage(project, style.portrait);
+    if (portraitSrc) {
+      const avatar = document.createElement("img");
+      avatar.className = "bubble-avatar";
+      avatar.src       = portraitSrc;
+      avatar.alt       = msg.name;
+      header.appendChild(avatar);
+    }
+
+    // Speaker name (shown when no portrait, or always as small label)
+    const speakerEl = document.createElement("div");
+    speakerEl.className = "bubble-speaker";
+    speakerEl.textContent = msg.name;
+    if (style.text_color) speakerEl.style.color = style.text_color;
+    header.appendChild(speakerEl);
+
+    wrap.appendChild(header);
+
+    // Bubble body
+    const body = document.createElement("div");
+    body.className = "bubble-body";
+
+    // Apply resolved styles
+    if (style.font_family)  body.style.fontFamily = style.font_family;
+    if (style.font_size)    body.style.fontSize   = style.font_size;
+    if (style.text_color)   body.style.color       = style.text_color;
+    if (style.text_shadow)  body.style.textShadow  = style.text_shadow;
+
+    // Bubble background: color + opacity
+    const bbColor   = style.bubble_bg_color   || "#000000";
+    const bbOpacity = style.bubble_bg_opacity !== null && style.bubble_bg_opacity !== undefined
+      ? parseFloat(style.bubble_bg_opacity) : 0.45;
+    const r = parseInt(bbColor.slice(1,3), 16);
+    const g = parseInt(bbColor.slice(3,5), 16);
+    const b = parseInt(bbColor.slice(5,7), 16);
+    const alpha = isNaN(bbOpacity) ? 0.45 : Math.max(0, Math.min(1, bbOpacity));
+    body.style.background = `rgba(${r},${g},${b},${alpha})`;
+
+    // Extra bubble_css
+    if (style.bubble_css) {
+      body.setAttribute("style", body.getAttribute("style") + ";" + style.bubble_css);
+    }
+
+    // Message text — render newlines as paragraphs
+    const paragraphs = (msg.mes || "").split(/\r?\n\r?\n|\r\n/).filter(s => s.trim());
+    if (paragraphs.length <= 1) {
+      // Single block — respect single newlines with <br>
+      body.innerHTML = escapeHtml(msg.mes || "").replace(/\r?\n/g, "<br>");
+    } else {
+      for (const para of paragraphs) {
+        const p = document.createElement("p");
+        p.innerHTML = escapeHtml(para).replace(/\r?\n/g, "<br>");
+        body.appendChild(p);
+      }
+    }
+
+    wrap.appendChild(body);
+
+    // Context menu wiring (right-click + long-press)
+    wrap.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      openCtxMenu(e.clientX, e.clientY, key);
+    });
+    wrap.addEventListener("mousedown", e => {
+      if (e.button === 2) return; // handled by contextmenu
+      longPressTimer = setTimeout(() => openCtxMenu(e.clientX, e.clientY, key), 600);
+    });
+    wrap.addEventListener("mouseup",   () => clearTimeout(longPressTimer));
+    wrap.addEventListener("mousemove", () => clearTimeout(longPressTimer));
+    wrap.addEventListener("touchstart", e => {
+      const t = e.touches[0];
+      longPressTimer = setTimeout(() => openCtxMenu(t.clientX, t.clientY, key), 600);
+    }, { passive: true });
+    wrap.addEventListener("touchend",   () => clearTimeout(longPressTimer));
+    wrap.addEventListener("touchmove",  () => clearTimeout(longPressTimer));
+
+    return wrap;
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 5: INTERSECTION OBSERVER (style triggers + ToC)
+  // --------------------------------------------------------------------------
+
+  function setupObservers() {
+    if (triggerObserver) triggerObserver.disconnect();
+    if (tocObserver)     tocObserver.disconnect();
+
+    // Style trigger observer — midpoint crossing
+    // Fires background/music changes when the TOP of a message crosses
+    // the viewport midpoint. rootMargin: "-50% 0px -50% 0px" means
+    // the intersection zone is a 0-height line at 50% height.
+    triggerObserver = new IntersectionObserver(onTriggerIntersect, {
+      rootMargin: "-50% 0px -50% 0px",
+      threshold:  0,
+    });
+
+    // Observe all message wraps in the active stream
+    observeActiveStreamMessages();
+  }
+
+  /**
+   * (Re-)attaches the IntersectionObserver to the active layout's message stream.
+   */
+  function observeActiveStreamMessages() {
+    if (!triggerObserver) return;
+
+    const streamId = layoutMode === "fullscreen"
+      ? "fs-message-stream" : "vn-message-stream";
+    const stream = document.getElementById(streamId);
+
+    stream.querySelectorAll(".msg-wrap").forEach(el => {
+      triggerObserver.observe(el);
+    });
+  }
+
+  /**
+   * Called by the IntersectionObserver when a message crosses the midpoint.
+   */
+  function onTriggerIntersect(entries) {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+
+      const key = entry.target.dataset.key;
+      if (!key) continue;
+
+      const msg   = project.messages[key];
+      const style = STSS.resolveStyle(project, key);
+
+      // Background change — always apply on every midpoint crossing.
+      // If the resolved style has no background, applyBackground falls back
+      // to global, which is exactly the "revert to global" behaviour.
+      applyBackground(style);
+
+      // Music change (persists)
+      if (msg.music_url && msg.music_url !== currentMusic) {
+        playMusic(msg.music_url);
+      }
+
+      // Sting (one-shot)
+      if (msg.sting_url) {
+        playString(msg.sting_url);
+      }
+
+      // VN mode: portrait update
+      if (layoutMode === "vn") {
+        updateVnPortrait(style.portrait);
+      }
+
+      // ToC highlight: find which node owns this message
+      updateTocActive(key);
+    }
+  }
+
+  /**
+   * Updates the active ToC item based on a send_date key.
+   */
+  function updateTocActive(key) {
+    // Find which leaf node this key belongs to
+    let ownerNodeId = null;
+    function findOwner(nodes) {
+      for (const node of nodes) {
+        if (node.messages.includes(key)) { ownerNodeId = node.id; return; }
+        if (node.children.length) findOwner(node.children);
+      }
+    }
+    findOwner(project.structure);
+    if (!ownerNodeId) return;
+
+    // Walk up to find the root-level ancestor (for highlighting)
+    document.querySelectorAll(".toc-node").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.nodeId === ownerNodeId);
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 6: LAYOUT MODES
+  // --------------------------------------------------------------------------
+
+  function setLayout(mode) {
+    layoutMode = mode;
+
+    document.getElementById("mode-fullscreen").classList.toggle("active", mode === "fullscreen");
+    document.getElementById("mode-vn").classList.toggle("active", mode === "vn");
+
+    document.getElementById("btn-layout-fullscreen").classList.toggle("active", mode === "fullscreen");
+    document.getElementById("btn-layout-vn").classList.toggle("active", mode === "vn");
+
+    // Re-attach observer to the now-active stream
+    setupObservers();
+
+    // The VN portrait needs to be re-applied since we switched streams
+    if (mode === "vn") {
+      // Reset portrait crossfade state and apply current portrait
+      resetVnPortrait();
+    }
+
+    currentScrollEl = mode === "fullscreen"
+      ? document.getElementById("mode-fullscreen")
+      : document.getElementById("vn-text-panel");
+
+    // Restore scroll position in the new layout
+    restoreScroll();
+
+    // Save layout preference
+    saveSetting("layout", mode);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 7: VN PORTRAIT
+  // --------------------------------------------------------------------------
+
+  /**
+   * Updates the VN portrait with a crossfade between two img elements.
+   * Uses a double-buffer (slot "a" / slot "b") approach.
+   */
+  function updateVnPortrait(hashOrNull) {
+    const src = STSS.resolveImage(project, hashOrNull);
+
+    // If same portrait, do nothing
+    if (src === vnCurrentPortrait) return;
+
+    vnCurrentPortrait = src;
+
+    const imgA = document.getElementById("vn-portrait-a");
+    const imgB = document.getElementById("vn-portrait-b");
+
+    const nextSlot  = vnActiveSlot === "a" ? "b" : "a";
+    const nextImg   = nextSlot === "a" ? imgA : imgB;
+    const activeImg = vnActiveSlot === "a" ? imgA : imgB;
+
+    if (src) {
+      nextImg.src = src;
+      // Preload then crossfade
+      nextImg.onload = () => {
+        nextImg.classList.add("visible");
+        nextImg.classList.remove("hidden");
+        activeImg.classList.add("hidden");
+        activeImg.classList.remove("visible");
+        vnActiveSlot = nextSlot;
+      };
+      // If already cached, onload may not fire — set src first, then check
+      if (nextImg.complete) {
+        nextImg.classList.add("visible");
+        nextImg.classList.remove("hidden");
+        activeImg.classList.add("hidden");
+        activeImg.classList.remove("visible");
+        vnActiveSlot = nextSlot;
+      }
+    } else {
+      // No portrait — fade out current
+      activeImg.classList.add("hidden");
+      activeImg.classList.remove("visible");
+    }
+  }
+
+  function resetVnPortrait() {
+    vnCurrentPortrait = null;
+    vnActiveSlot = "a";
+    const imgA = document.getElementById("vn-portrait-a");
+    const imgB = document.getElementById("vn-portrait-b");
+    imgA.classList.add("hidden");   imgA.classList.remove("visible");
+    imgB.classList.add("hidden");   imgB.classList.remove("visible");
+    imgA.src = ""; imgB.src = "";
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 8: BACKGROUND
+  // --------------------------------------------------------------------------
+
+  /**
+   * Applies a resolved style's background to the bg layer.
+   * If the resolved style has no background set, falls back to global.
+   */
+  function applyBackground(style) {
+    const layer = document.getElementById("bg-layer");
+    const src   = STSS.resolveImage(project, style.background);
+
+    if (src) {
+      layer.style.backgroundImage = `url(${src})`;
+      layer.style.backgroundColor = "";
+      return;
+    }
+
+    // Determine effective background_css: message override, else global
+    const bgCss = style.background_css || (project ? project.globals.background_css : null);
+
+    if (bgCss) {
+      layer.style.backgroundImage = "";
+      let cssVal = bgCss
+        .replace(/^background[^:]*:\s*/i, "")
+        .replace(/;.*$/, "")
+        .trim();
+      if (cssVal.startsWith("linear-gradient") ||
+          cssVal.startsWith("radial-gradient") ||
+          cssVal.startsWith("url(")) {
+        layer.style.backgroundImage = cssVal;
+        layer.style.backgroundColor = "";
+      } else {
+        layer.style.backgroundColor = cssVal;
+        layer.style.backgroundImage = "";
+      }
+    } else {
+      // True fallback: nothing set anywhere
+      layer.style.backgroundImage = "";
+      layer.style.backgroundColor = "#1a1a2e";
+    }
+  }
+
+  /**
+   * Applies global background on initial load.
+   */
+  function applyGlobalBackground() {
+    const globalStyle = {
+      background:     project.globals.background,
+      background_css: project.globals.background_css,
+    };
+    applyBackground(globalStyle);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 9: AUDIO
+  // --------------------------------------------------------------------------
+
+  function checkForMusic() {
+    if (project.globals.music_url) return true;
+    for (const key of flatOrder) {
+      const msg = project.messages[key];
+      if (msg && msg.music_url) return true;
+    }
+    return false;
+  }
+
+  function playMusic(url) {
+    if (!url) return;
+    currentMusic = url;
+    const el = document.getElementById("audio-music");
+    el.src    = url;
+    el.muted  = isMuted;
+    el.volume = parseFloat(document.getElementById("volume-slider").value);
+    el.play().catch(() => {}); // autoplay may be blocked; fail silently
+  }
+
+  function playString(url) {
+    if (!url) return;
+    const el = document.getElementById("audio-sting");
+    el.src   = url;
+    el.muted = isMuted;
+    el.currentTime = 0;
+    el.play().catch(() => {});
+  }
+
+  function toggleMute() {
+    isMuted = !isMuted;
+    document.getElementById("audio-music").muted = isMuted;
+    document.getElementById("audio-sting").muted = isMuted;
+    document.getElementById("btn-mute").textContent = isMuted ? "🔇" : "🔊";
+    document.getElementById("btn-mute").classList.toggle("active", isMuted);
+    saveSetting("muted", isMuted);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 10: BOOKMARKS
+  // --------------------------------------------------------------------------
+
+  function openCtxMenu(x, y, key) {
+    ctxTargetKey = key;
+    const menu = document.getElementById("ctx-menu");
+    menu.style.left = x + "px";
+    menu.style.top  = y + "px";
+
+    // Flip if off-screen
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) {
+        menu.style.left = (x - rect.width) + "px";
+      }
+      if (rect.bottom > window.innerHeight) {
+        menu.style.top = (y - rect.height) + "px";
+      }
+    });
+
+    menu.classList.add("open");
+  }
+
+  function closeCtxMenu() {
+    document.getElementById("ctx-menu").classList.remove("open");
+    ctxTargetKey = null;
+  }
+
+  /**
+   * Returns a breadcrumb string for a message key, e.g. "Arc 1 › Chapter 1"
+   */
+  function getMessageBreadcrumb(key) {
+    const crumbs = [];
+    function walk(nodes, trail) {
+      for (const node of nodes) {
+        const newTrail = [...trail, node.title];
+        if (node.messages.includes(key)) { crumbs.push(...newTrail); return true; }
+        if (node.children.length && walk(node.children, newTrail)) return true;
+      }
+      return false;
+    }
+    walk(project.structure, []);
+    return crumbs.join(" › ");
+  }
+
+  function addBookmark(key, label) {
+    if (bookmarks.find(b => b.key === key)) return;
+    const msg      = project.messages[key];
+    const preview  = msg ? msg.mes.replace(/\s+/g, " ").trim().slice(0, 150) : "";
+    const location = getMessageBreadcrumb(key);
+    bookmarks.push({
+      key,
+      label:    label || (msg ? msg.name : key),
+      preview,
+      location,
+      index:    msg ? msg.msg_index : null,
+    });
+    saveBookmarks();
+    renderBookmarkPanel();
+    syncBookmarkIcons();
+  }
+
+  function removeBookmark(key) {
+    bookmarks = bookmarks.filter(b => b.key !== key);
+    saveBookmarks();
+    renderBookmarkPanel();
+    syncBookmarkIcons();
+  }
+
+  /**
+   * Updates the .bookmarked class on all hint icons to match current bookmarks.
+   */
+  function syncBookmarkIcons() {
+    document.querySelectorAll(".msg-bm-hint").forEach(el => {
+      const key = el.closest(".msg-wrap").dataset.key;
+      el.classList.toggle("bookmarked", !!bookmarks.find(b => b.key === key));
+    });
+  }
+
+  function renderBookmarkPanel() {
+    const panel = document.getElementById("bookmark-panel");
+    panel.innerHTML = "";
+
+    // Fixed nav items
+    const mkNav = (label, onClick) => {
+      const btn = document.createElement("button");
+      btn.className   = "bm-item bm-special";
+      btn.textContent = label;
+      btn.addEventListener("click", () => { onClick(); toggleBookmarkPanel(false); });
+      return btn;
+    };
+    panel.appendChild(mkNav("↑ Jump to beginning", () => scrollToBeginning()));
+    panel.appendChild(mkNav("↓ Jump to end",        () => scrollToEnd()));
+
+    if (!bookmarks.length) {
+      const empty = document.createElement("div");
+      empty.className = "bm-empty";
+      empty.textContent = "No bookmarks yet — click 🔖 on any message.";
+      panel.appendChild(empty);
+      return;
+    }
+
+    for (const bm of bookmarks) {
+      const card = document.createElement("div");
+      card.className = "bm-card";
+
+      // Top row: speaker name + index + delete button
+      const top = document.createElement("div");
+      top.className = "bm-card-top";
+
+      const nameEl = document.createElement("span");
+      nameEl.className   = "bm-card-name";
+      nameEl.textContent = bm.label;
+
+      const idxEl = document.createElement("span");
+      idxEl.className   = "bm-card-index";
+      idxEl.textContent = bm.index !== null && bm.index !== undefined ? "#" + bm.index : "";
+
+      const del = document.createElement("button");
+      del.className   = "bm-card-del";
+      del.textContent = "×";
+      del.title       = "Remove bookmark";
+      del.addEventListener("click", e => { e.stopPropagation(); removeBookmark(bm.key); });
+
+      top.appendChild(nameEl);
+      top.appendChild(idxEl);
+      top.appendChild(del);
+      card.appendChild(top);
+
+      // Location breadcrumb
+      if (bm.location) {
+        const loc = document.createElement("div");
+        loc.className   = "bm-card-location";
+        loc.textContent = bm.location;
+        card.appendChild(loc);
+      }
+
+      // Text preview
+      if (bm.preview) {
+        const prev = document.createElement("div");
+        prev.className   = "bm-card-preview";
+        prev.textContent = bm.preview.length >= 150 ? bm.preview + "…" : bm.preview;
+        card.appendChild(prev);
+      }
+
+      // Click the card body (not delete) to jump
+      card.addEventListener("click", () => {
+        scrollToMessage(bm.key);
+        toggleBookmarkPanel(false);
+      });
+
+      panel.appendChild(card);
+    }
+  }
+
+  let bookmarkPanelOpen = false;
+
+  function toggleBookmarkPanel(force) {
+    bookmarkPanelOpen = force !== undefined ? force : !bookmarkPanelOpen;
+    document.getElementById("bookmark-panel").classList.toggle("open", bookmarkPanelOpen);
+    document.getElementById("btn-bookmark").classList.toggle("active", bookmarkPanelOpen);
+    // Close volume panel if open
+    document.getElementById("volume-panel").classList.remove("open");
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 11: SCROLLING
+  // --------------------------------------------------------------------------
+
+  function getScrollEl() {
+    return layoutMode === "fullscreen"
+      ? document.getElementById("mode-fullscreen")
+      : document.getElementById("vn-text-panel");
+  }
+
+  function scrollToMessage(key) {
+    // Find the first .msg-wrap with this key in the active stream
+    const streamId = layoutMode === "fullscreen"
+      ? "fs-message-stream" : "vn-message-stream";
+    const stream = document.getElementById(streamId);
+    const el = stream.querySelector(`.msg-wrap[data-key="${CSS.escape(key)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function scrollToBeginning() {
+    getScrollEl().scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function scrollToEnd() {
+    const el = getScrollEl();
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
+
+  function restoreScroll() {
+    const pos = loadSetting("scrollPos") || 0;
+    getScrollEl().scrollTop = pos;
+  }
+
+  /**
+   * Saves scroll position to localStorage on scroll events (debounced).
+   */
+  let saveScrollTimer = null;
+  function onScroll() {
+    clearTimeout(saveScrollTimer);
+    saveScrollTimer = setTimeout(() => {
+      saveSetting("scrollPos", getScrollEl().scrollTop);
+    }, 300);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 12: SIDEBAR TOGGLE
+  // --------------------------------------------------------------------------
+
+  let sidebarOpen = true;
+
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    document.getElementById("sidebar").classList.toggle("collapsed", !sidebarOpen);
+    document.getElementById("btn-sidebar-toggle").classList.toggle("active", sidebarOpen);
+    saveSetting("sidebarOpen", sidebarOpen);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 13: DOWNLOAD
+  // --------------------------------------------------------------------------
+
+  function downloadPayload() {
+    if (!project) return;
+    const json  = STSS.exportProject(project);
+    const blob  = new Blob([json], { type: "application/json" });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement("a");
+    a.href      = url;
+    a.download  = (project.meta.title || "story").replace(/[^a-z0-9_\-]/gi, "_") + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 14: PERSISTENT STATE (localStorage)
+  // --------------------------------------------------------------------------
+
+  function saveSetting(key, value) {
+    if (!storyId) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(storyId) || "{}");
+      saved[key] = value;
+      localStorage.setItem(storyId, JSON.stringify(saved));
+    } catch(e) {}
+  }
+
+  function loadSetting(key) {
+    if (!storyId) return null;
+    try {
+      const saved = JSON.parse(localStorage.getItem(storyId) || "{}");
+      return saved[key] !== undefined ? saved[key] : null;
+    } catch(e) { return null; }
+  }
+
+  function loadSavedState() {
+    const savedLayout = loadSetting("layout");
+    if (savedLayout) layoutMode = savedLayout;
+
+    const savedMuted = loadSetting("muted");
+    if (savedMuted !== null) isMuted = savedMuted;
+
+    const savedBookmarks = loadSetting("bookmarks");
+    if (savedBookmarks) bookmarks = savedBookmarks;
+
+    const savedSidebar = loadSetting("sidebarOpen");
+    if (savedSidebar !== null) sidebarOpen = savedSidebar;
+  }
+
+  function saveBookmarks() {
+    saveSetting("bookmarks", bookmarks);
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 15: UTILITIES
+  // --------------------------------------------------------------------------
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 15b: SEARCH OVERLAY
+  // --------------------------------------------------------------------------
+
+  // Masterlist schema:
+  //   { "indices": [ { "name": "Wren", "url": "…" }, … ] }
+  //
+  // Each author index schema:
+  //   { "author": "Wren", "stories": [ { "title": "…", "url": "…", "description": "…" }, … ] }
+
+  const MASTERLIST_URL = "./masterlist.json";
+
+  // Cache fetched author indices so we don't re-fetch on every open
+  // Map<authorName, { status: "loading"|"ok"|"error", stories: [], error: "" }>
+  const authorIndexCache = new Map();
+
+  // The full masterlist entries: [{ name, url }]
+  let masterlistEntries = null;
+  let masterlistStatus  = "idle"; // "idle" | "loading" | "ok" | "error"
+
+  // Debounce timer for search input
+  let searchDebounce = null;
+
+  function openSearchOverlay() {
+    document.getElementById("search-overlay").classList.add("open");
+    document.getElementById("search-input").focus();
+
+    // Fetch masterlist if we haven't yet
+    if (masterlistStatus === "idle") {
+      fetchMasterlist();
+    } else {
+      // Already have it — just render current state
+      renderSearchResults(document.getElementById("search-input").value.trim());
+    }
+  }
+
+  function closeSearchOverlay() {
+    document.getElementById("search-overlay").classList.remove("open");
+  }
+
+  function fetchMasterlist() {
+    masterlistStatus = "loading";
+    setSearchStatus("Fetching story index…", false);
+    showSearchSpinner(true);
+
+    fetch(MASTERLIST_URL)
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(data => {
+        if (!data.indices || !Array.isArray(data.indices)) {
+          throw new Error("masterlist.json is missing an 'indices' array");
+        }
+        masterlistEntries = data.indices;
+        masterlistStatus  = "ok";
+        showSearchSpinner(false);
+        setSearchStatus(masterlistEntries.length + " author(s) in index", false);
+        renderSearchResults(document.getElementById("search-input").value.trim());
+      })
+      .catch(err => {
+        masterlistStatus = "error";
+        showSearchSpinner(false);
+        setSearchStatus("Could not load masterlist.json — " + err.message, true);
+      });
+  }
+
+  /**
+   * Lazily fetches one author's index and caches the result.
+   * Returns a Promise that resolves when the fetch is complete.
+   */
+  function fetchAuthorIndex(entry) {
+    const name = entry.name;
+
+    if (authorIndexCache.has(name)) {
+      return Promise.resolve(); // already fetched or in-flight via cache
+    }
+
+    // Mark as loading immediately so concurrent calls don't double-fetch
+    authorIndexCache.set(name, { status: "loading", stories: [], error: "" });
+
+    return fetch(entry.url)
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(data => {
+        if (!data.stories || !Array.isArray(data.stories)) {
+          throw new Error("Missing 'stories' array");
+        }
+        authorIndexCache.set(name, { status: "ok", stories: data.stories, error: "" });
+      })
+      .catch(err => {
+        authorIndexCache.set(name, { status: "error", stories: [], error: err.message });
+      })
+      .then(() => {
+        // Re-render now that this author's data is available
+        renderSearchResults(document.getElementById("search-input").value.trim());
+      });
+  }
+
+  /**
+   * Main render function for the search results pane.
+   * Called on: masterlist load, author index load, search input change.
+   */
+  function renderSearchResults(query) {
+    const container = document.getElementById("search-results");
+    container.innerHTML = "";
+
+    if (masterlistStatus === "loading") {
+      container.innerHTML = '<div class="sr-empty">Loading index…</div>';
+      return;
+    }
+    if (masterlistStatus === "error" || !masterlistEntries) {
+      container.innerHTML = '<div class="sr-empty">Could not load story index.</div>';
+      return;
+    }
+    if (!masterlistEntries.length) {
+      container.innerHTML = '<div class="sr-empty">No authors in the index yet.</div>';
+      return;
+    }
+
+    const q = query.toLowerCase();
+
+    let anyVisible = false;
+
+    for (const entry of masterlistEntries) {
+      const cache = authorIndexCache.get(entry.name);
+
+      // Filter stories if we have them; if not yet loaded, show the author
+      // regardless of query so the user can click to expand and trigger the load.
+      let visibleStories = [];
+      if (cache && cache.status === "ok") {
+        visibleStories = q
+          ? cache.stories.filter(s =>
+              (s.title       || "").toLowerCase().includes(q) ||
+              (entry.name    || "").toLowerCase().includes(q) ||
+              (s.description || "").toLowerCase().includes(q)
+            )
+          : cache.stories;
+      }
+
+      // If we have loaded data and the query filters this author out entirely, skip
+      if (cache && cache.status === "ok" && q && !visibleStories.length &&
+          !entry.name.toLowerCase().includes(q)) {
+        continue;
+      }
+
+      anyVisible = true;
+
+      const group = document.createElement("div");
+      group.className  = "sr-author-group";
+      group.dataset.author = entry.name;
+
+      // Author header row
+      const header = document.createElement("div");
+      header.className = "sr-author-header";
+
+      const toggle = document.createElement("span");
+      toggle.className   = "sr-author-toggle";
+      toggle.textContent = "▶";
+
+      const nameEl = document.createElement("span");
+      nameEl.className   = "sr-author-name";
+      nameEl.textContent = entry.name;
+
+      const meta = document.createElement("span");
+      if (!cache) {
+        meta.className   = "sr-author-loading";
+        meta.textContent = "click to load";
+      } else if (cache.status === "loading") {
+        meta.className   = "sr-author-loading";
+        meta.textContent = "loading…";
+      } else if (cache.status === "error") {
+        meta.className   = "sr-author-error";
+        meta.textContent = "failed to load";
+      } else {
+        meta.className   = "sr-author-count";
+        meta.textContent = visibleStories.length + " stor" + (visibleStories.length === 1 ? "y" : "ies");
+      }
+
+      header.appendChild(toggle);
+      header.appendChild(nameEl);
+      header.appendChild(meta);
+      group.appendChild(header);
+
+      // Story list
+      const storyList = document.createElement("div");
+      storyList.className = "sr-story-list";
+
+      if (cache && cache.status === "error") {
+        const errEl = document.createElement("div");
+        errEl.style.cssText = "padding:0.5rem 1.25rem 0.5rem 2.5rem;";
+        errEl.className     = "sr-author-error";
+        errEl.textContent   = "Could not load index: " + cache.error;
+        storyList.appendChild(errEl);
+      } else if (cache && cache.status === "ok") {
+        for (const story of visibleStories) {
+          storyList.appendChild(buildStoryItem(story, entry.name, q));
+        }
+        if (!visibleStories.length && q) {
+          const none = document.createElement("div");
+          none.style.cssText = "padding:0.5rem 1.25rem 0.5rem 2.5rem;font-size:0.75rem;color:var(--ui-text-dim);font-style:italic;";
+          none.textContent   = "No matching stories.";
+          storyList.appendChild(none);
+        }
+      }
+      // If not yet loaded, story list stays empty until clicked
+
+      group.appendChild(storyList);
+
+      // Toggle open/close and lazy-load on click
+      header.addEventListener("click", () => {
+        const isOpen = group.classList.toggle("open");
+        if (isOpen && !authorIndexCache.has(entry.name)) {
+          fetchAuthorIndex(entry);
+        }
+      });
+
+      // Auto-expand if there's an active query (helps discovery)
+      if (q && cache && cache.status === "ok" && visibleStories.length) {
+        group.classList.add("open");
+      }
+
+      container.appendChild(group);
+    }
+
+    if (!anyVisible && q) {
+      container.innerHTML = '<div class="sr-empty">No stories match "' + escapeHtml(query) + '".</div>';
+    }
+  }
+
+  /**
+   * Builds a single story row with highlighted match text.
+   */
+  function buildStoryItem(story, authorName, q) {
+    const item = document.createElement("div");
+    item.className = "sr-story-item";
+
+    const body = document.createElement("div");
+    body.className = "sr-story-body";
+
+    const titleEl = document.createElement("div");
+    titleEl.className   = "sr-story-title";
+    titleEl.innerHTML   = q ? highlight(story.title || "Untitled", q) : escapeHtml(story.title || "Untitled");
+    body.appendChild(titleEl);
+
+    if (story.description) {
+      const descEl = document.createElement("div");
+      descEl.className = "sr-story-desc";
+      descEl.innerHTML = q ? highlight(story.description, q) : escapeHtml(story.description);
+      body.appendChild(descEl);
+    }
+
+    item.appendChild(body);
+
+    const loadBtn = document.createElement("button");
+    loadBtn.className   = "sr-story-load-btn";
+    loadBtn.textContent = "Read →";
+    loadBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      loadStoryFromSearch(story.url);
+    });
+    item.appendChild(loadBtn);
+
+    // Clicking the row also loads
+    item.addEventListener("click", () => loadStoryFromSearch(story.url));
+
+    return item;
+  }
+
+  /**
+   * Wraps query matches in a highlight span. Input is plain text, output is HTML.
+   */
+  function highlight(text, query) {
+    if (!query) return escapeHtml(text);
+    const escaped = escapeHtml(text);
+    const escapedQ = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return escaped.replace(
+      new RegExp(escapedQ.replace(/&amp;|&lt;|&gt;|&quot;/g, "."), "gi"),
+      m => '<span class="sr-match">' + m + "</span>"
+    );
+  }
+
+  /**
+   * Loads a story from a URL found in search results.
+   * Closes the overlay, shows loading screen, fetches and loads.
+   */
+  function loadStoryFromSearch(url) {
+    closeSearchOverlay();
+    document.getElementById("loading-screen").style.display = "flex";
+    document.getElementById("loading-screen").classList.remove("fade-out");
+    setLoadingStatus("Loading story…");
+    storyUrl = url;
+    fetchAndLoad(url);
+  }
+
+  function setSearchStatus(msg, isError) {
+    const el = document.getElementById("search-status");
+    el.textContent = msg;
+    el.classList.toggle("error", !!isError);
+  }
+
+  function showSearchSpinner(visible) {
+    document.getElementById("search-spinner").style.display = visible ? "block" : "none";
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 16: WIRE ALL BUTTONS
+  // --------------------------------------------------------------------------
+
+  function wireButtons() {
+    // Sidebar toggle
+    document.getElementById("btn-sidebar-toggle").addEventListener("click", toggleSidebar);
+
+    // Mute button (shows volume panel inline; clicking icon toggles mute)
+    document.getElementById("btn-mute").addEventListener("click", function(e) {
+      e.stopPropagation();
+      // Toggle volume panel visibility
+      const vp = document.getElementById("volume-panel");
+      const isOpen = vp.classList.toggle("open");
+      toggleBookmarkPanel(false);
+      this.classList.toggle("active", isMuted || isOpen);
+    });
+
+    // Volume slider
+    document.getElementById("volume-slider").addEventListener("input", function() {
+      const vol = parseFloat(this.value);
+      document.getElementById("audio-music").volume = vol;
+      document.getElementById("audio-sting").volume = vol;
+      // If volume > 0 and was muted, unmute
+      if (vol > 0 && isMuted) {
+        isMuted = false;
+        document.getElementById("audio-music").muted = false;
+        document.getElementById("audio-sting").muted = false;
+        document.getElementById("btn-mute").textContent = "🔊";
+        document.getElementById("btn-mute").classList.remove("active");
+      } else if (vol === 0 && !isMuted) {
+        isMuted = true;
+        document.getElementById("btn-mute").textContent = "🔇";
+        document.getElementById("btn-mute").classList.add("active");
+      }
+      saveSetting("volume", vol);
+      saveSetting("muted", isMuted);
+    });
+
+    // Bookmark button
+    document.getElementById("btn-bookmark").addEventListener("click", function(e) {
+      e.stopPropagation();
+      toggleBookmarkPanel();
+      document.getElementById("volume-panel").classList.remove("open");
+    });
+
+    // Layout buttons
+    document.getElementById("btn-layout-fullscreen").addEventListener("click", () => setLayout("fullscreen"));
+    document.getElementById("btn-layout-vn").addEventListener("click", () => setLayout("vn"));
+
+    // Download
+    document.getElementById("btn-download").addEventListener("click", downloadPayload);
+
+    // Load new story
+    document.getElementById("btn-load-new").addEventListener("click", function() {
+      document.getElementById("sidebar-file-input").click();
+    });
+    document.getElementById("sidebar-file-input").addEventListener("change", function(e) {
+      if (e.target.files.length) handleDropZoneFile(e.target.files[0]);
+      e.target.value = "";
+    });
+
+    // Drop zone
+    const dzBox = document.getElementById("dz-drop-box");
+    const dzFile = document.getElementById("drop-zone-file");
+
+    dzBox.addEventListener("click", () => dzFile.click());
+    dzFile.addEventListener("change", e => {
+      if (e.target.files.length) handleDropZoneFile(e.target.files[0]);
+      e.target.value = "";
+    });
+    document.getElementById("drop-zone").addEventListener("dragover", e => {
+      e.preventDefault();
+      document.getElementById("drop-zone").classList.add("dragging");
+    });
+    document.getElementById("drop-zone").addEventListener("dragleave", () => {
+      document.getElementById("drop-zone").classList.remove("dragging");
+    });
+    document.getElementById("drop-zone").addEventListener("drop", e => {
+      e.preventDefault();
+      document.getElementById("drop-zone").classList.remove("dragging");
+      if (e.dataTransfer.files.length) handleDropZoneFile(e.dataTransfer.files[0]);
+    });
+
+    // URL load button
+    document.getElementById("dz-url-btn").addEventListener("click", () => {
+      const url = document.getElementById("dz-url-input").value.trim();
+      if (!url) return;
+      document.getElementById("loading-screen").style.display = "flex";
+      document.getElementById("loading-screen").classList.remove("fade-out");
+      setLoadingStatus("Fetching…");
+      hideDropZone();
+      fetchAndLoad(url);
+    });
+    document.getElementById("dz-url-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") document.getElementById("dz-url-btn").click();
+    });
+
+    // Context menu
+    document.getElementById("ctx-bookmark").addEventListener("click", () => {
+      if (ctxTargetKey) addBookmark(ctxTargetKey);
+      closeCtxMenu();
+    });
+    document.getElementById("ctx-bookmark-label").addEventListener("click", () => {
+      if (!ctxTargetKey) return;
+      const label = window.prompt("Bookmark label:");
+      if (label !== null) addBookmark(ctxTargetKey, label.trim() || undefined);
+      closeCtxMenu();
+    });
+
+    // Close context menu and panels on outside click
+    document.addEventListener("click", e => {
+      if (!e.target.closest("#ctx-menu")) closeCtxMenu();
+      if (!e.target.closest("#float-controls")) {
+        toggleBookmarkPanel(false);
+        document.getElementById("volume-panel").classList.remove("open");
+      }
+    });
+
+    // Scroll listeners
+    document.getElementById("mode-fullscreen").addEventListener("scroll", onScroll, { passive: true });
+    document.getElementById("vn-text-panel").addEventListener("scroll", onScroll, { passive: true });
+
+    // Search stories button (sidebar + drop zone)
+    document.getElementById("btn-search-stories").addEventListener("click", openSearchOverlay);
+    document.getElementById("dz-search-btn").addEventListener("click", openSearchOverlay);
+
+    // Search overlay close button + backdrop click
+    document.getElementById("btn-search-close").addEventListener("click", closeSearchOverlay);
+    document.getElementById("search-overlay").addEventListener("click", e => {
+      if (e.target === document.getElementById("search-overlay")) closeSearchOverlay();
+    });
+
+    // Search input — debounced so we don't re-render on every keystroke
+    document.getElementById("search-input").addEventListener("input", function() {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        renderSearchResults(this.value.trim());
+      }, 180);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        if (document.getElementById("search-overlay").classList.contains("open")) {
+          closeSearchOverlay();
+          return;
+        }
+        closeCtxMenu();
+        toggleBookmarkPanel(false);
+        document.getElementById("volume-panel").classList.remove("open");
+      }
+      if (e.key === "[" || e.key === "ArrowLeft") {
+        if (e.target.tagName !== "INPUT") scrollToBeginning();
+      }
+      if (e.key === "]" || e.key === "ArrowRight") {
+        if (e.target.tagName !== "INPUT") scrollToEnd();
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // SECTION 17: APPLY INITIAL STATE AFTER RENDER
+  // --------------------------------------------------------------------------
+
+  function applyInitialState() {
+    // Apply global background
+    applyGlobalBackground();
+
+    // Apply layout mode
+    setLayout(layoutMode);
+
+    // Apply mute state
+    if (isMuted) {
+      document.getElementById("btn-mute").textContent = "🔇";
+      document.getElementById("btn-mute").classList.add("active");
+    }
+
+    // Apply sidebar state
+    if (!sidebarOpen) {
+      document.getElementById("sidebar").classList.add("collapsed");
+      document.getElementById("btn-sidebar-toggle").classList.remove("active");
+    }
+
+    // Restore volume
+    const savedVol = loadSetting("volume");
+    if (savedVol !== null) {
+      document.getElementById("volume-slider").value = savedVol;
+      document.getElementById("audio-music").volume = savedVol;
+    }
+
+    // Render bookmark panel
+    renderBookmarkPanel();
+
+    // Start global music if set
+    if (project.globals.music_url) {
+      playMusic(project.globals.music_url);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // INIT
+  // --------------------------------------------------------------------------
+
+  wireButtons();
+  init();
+
+  </script>
+</body>
+</html>

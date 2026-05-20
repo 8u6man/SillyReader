@@ -1,0 +1,4043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STSS Editor</title>
+  <script src="stss-core.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Nunito:wght@400;600&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       DESIGN: Dark editorial workbench. Tight grid, cool greys, a
+       single warm amber accent for selection/action states.
+       Feels like a professional tool, not a toy.
+    ================================================================ */
+
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+    :root {
+      --bg:          #111113;
+      --bg2:         #18181c;
+      --bg3:         #202026;
+      --bg4:         #28282f;
+      --border:      #2e2e38;
+      --border2:     #3a3a48;
+      --text:        #d4d4e0;
+      --text-dim:    #5a5a70;
+      --text-muted:  #3a3a50;
+      --accent:      #e8a33a;   /* warm amber — the one pop of colour */
+      --accent-dim:  #7a4d0f;
+      --green:       #5dba7a;
+      --blue:        #6aaee8;
+      --yellow:      #d4b44a;
+      --red:         #c05050;
+      --sidebar-w:   272px;
+      --font-ui:     'IBM Plex Sans', sans-serif;
+      --font-mono:   'IBM Plex Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden; /* we handle scroll per-panel */
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ----------------------------------------------------------------
+       TOP BAR
+    ---------------------------------------------------------------- */
+    #top-bar {
+      height: 40px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 1rem;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    #top-bar .app-name {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    #top-bar .project-title-display {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      flex: 1;
+    }
+
+    #top-bar .project-title-display span {
+      color: var(--text);
+    }
+
+    .top-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .top-btn:hover { color: var(--text); border-color: var(--text-dim); }
+    .top-btn.primary {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+    .top-btn.primary:hover { border-color: var(--accent); }
+
+    /* ----------------------------------------------------------------
+       MAIN LAYOUT: sidebar + content
+    ---------------------------------------------------------------- */
+    #layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ----------------------------------------------------------------
+       LEFT SIDEBAR
+    ---------------------------------------------------------------- */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-section {
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      user-select: none;
+    }
+
+    .sidebar-section-header .hdr-actions {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    /* Small icon-style buttons used in sidebar headers */
+    .icon-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .icon-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+    .icon-btn.danger:hover { color: var(--red); border-color: var(--red); }
+
+    /* ---- Project info ---- */
+    #project-info {
+      padding: 0.6rem 0.75rem;
+    }
+
+    .meta-field {
+      margin-bottom: 0.4rem;
+    }
+
+    .meta-field label {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.2rem;
+    }
+
+    .meta-field input,
+    .meta-field textarea {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      padding: 0.3rem 0.5rem;
+      outline: none;
+      transition: border-color 0.15s;
+      resize: none;
+    }
+    .meta-field input:focus,
+    .meta-field textarea:focus {
+      border-color: var(--accent-dim);
+    }
+
+    /* ---- Import zone ---- */
+    #import-zone {
+      margin: 0.5rem 0.75rem 0.6rem;
+      border: 1px dashed var(--border2);
+      border-radius: 3px;
+      padding: 0.6rem;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    #import-zone:hover,
+    #import-zone.drag-over {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+      background: rgba(232,163,58,0.04);
+    }
+    #import-file { display: none; }
+
+    #import-stats {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      padding: 0 0.75rem 0.5rem;
+      font-family: var(--font-mono);
+      min-height: 1.2em;
+    }
+    #import-stats .ok  { color: var(--green); }
+    #import-stats .dim { color: var(--text-dim); }
+
+    /* ---- Structure tree ---- */
+    #tree-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.4rem 0;
+    }
+
+    #tree-container::-webkit-scrollbar { width: 4px; }
+    #tree-container::-webkit-scrollbar-track { background: transparent; }
+    #tree-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .tree-empty {
+      padding: 0.75rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Each node row */
+    .tree-node {
+      user-select: none;
+    }
+
+    .tree-node-row {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.22rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.1s;
+      /* indent is set via JS using padding-left */
+    }
+    .tree-node-row:hover { background: var(--bg3); }
+    .tree-node-row.selected {
+      background: var(--bg4);
+      outline: 1px solid var(--accent-dim);
+    }
+
+    .tree-toggle {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 0.65rem;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .tree-toggle.open { transform: rotate(90deg); }
+    .tree-toggle.leaf { color: var(--text-muted); }
+
+    .tree-type-badge {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 0 0.3rem;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    /* Highlight the badge of the selected node */
+    .tree-node-row.selected .tree-type-badge {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* Editable title — double-click to rename */
+    .tree-node-title {
+      flex: 1;
+      font-size: 0.82rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      outline: none;
+    }
+    .tree-node-title[contenteditable="true"] {
+      background: var(--bg4);
+      border-radius: 2px;
+      padding: 0 0.25rem;
+      color: var(--accent);
+      outline: 1px solid var(--accent-dim);
+      white-space: nowrap;
+      overflow: visible;
+    }
+
+    .tree-msg-count {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .tree-del-btn {
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .tree-node-row:hover .tree-del-btn { opacity: 1; }
+
+    /* ---- Sidebar footer: export ---- */
+    #sidebar-footer {
+      flex-shrink: 0;
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .export-btn {
+      width: 100%;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background 0.15s;
+    }
+    .export-btn:hover { background: rgba(232,163,58,0.15); }
+
+    .save-status {
+      text-align: center;
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      margin-top: 0.4rem;
+    }
+
+    /* ================================================================
+       RIGHT PANEL: Message list
+    ================================================================ */
+    #main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* Panel header: shows which node is active */
+    #panel-header {
+      height: 40px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    #node-breadcrumb {
+      flex: 1;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    #node-breadcrumb .crumb-active {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    #node-breadcrumb .crumb-warn {
+      color: var(--yellow);
+    }
+
+    /* The assign button — hidden until messages are selected + leaf node active */
+    #assign-btn {
+      display: none;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #assign-btn:hover { background: rgba(232,163,58,0.15); }
+
+    #unassign-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #unassign-btn:hover { color: var(--red); border-color: var(--red); }
+
+    #sel-count {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* Search / filter bar */
+    #filter-bar {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-shrink: 0;
+      background: var(--bg2);
+    }
+
+    #filter-bar input {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      padding: 0.3rem 0.5rem;
+      outline: none;
+    }
+    #filter-bar input:focus { border-color: var(--accent-dim); }
+
+    .filter-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .filter-toggle:hover { color: var(--text); border-color: var(--border2); }
+    .filter-toggle.active { color: var(--accent); border-color: var(--accent-dim); }
+
+    /* Message list scroll area */
+    #msg-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 1rem;
+    }
+    #msg-scroll::-webkit-scrollbar { width: 6px; }
+    #msg-scroll::-webkit-scrollbar-track { background: transparent; }
+    #msg-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .msg-list-empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    /* Individual message rows */
+    .msg-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.45rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-left: 2px solid transparent;
+      margin-bottom: 1px;
+    }
+    .msg-row:hover { background: var(--bg2); }
+
+    /* Selected state */
+    .msg-row.selected {
+      background: rgba(232,163,58,0.07);
+      border-left-color: var(--accent);
+    }
+
+    /* Assigned state: dimmed */
+    .msg-row.assigned {
+      opacity: 0.38;
+    }
+    /* If assigned AND selected, let selection show through a little */
+    .msg-row.assigned.selected {
+      opacity: 0.65;
+      border-left-color: var(--accent);
+    }
+
+    /* Custom checkbox */
+    .msg-check {
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--border2);
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s, border-color 0.1s;
+      background: var(--bg3);
+    }
+    .msg-row.selected .msg-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .msg-check::after {
+      content: '';
+      width: 7px;
+      height: 5px;
+      border-left: 1.5px solid var(--bg);
+      border-bottom: 1.5px solid var(--bg);
+      transform: rotate(-45deg) translate(0.5px, -0.5px);
+      display: none;
+    }
+    .msg-row.selected .msg-check::after { display: block; }
+
+    .msg-body {
+      flex: 1;
+      min-width: 0; /* allows text-overflow to work in flex children */
+    }
+
+    .msg-row-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .msg-row-name {
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+    .msg-row-name.is-user   { color: var(--blue); }
+    .msg-row-name.is-system { color: var(--yellow); }
+    .msg-row-name.is-char   { color: var(--green); }
+
+    .msg-row-date {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    /* The node-name badge shown on assigned messages */
+    .msg-node-badge {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      background: var(--bg4);
+      border: 1px solid var(--border2);
+      border-radius: 2px;
+      padding: 0 0.3rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .msg-row-text {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ---- Edit zone: right-side strip ---- */
+    /* The row uses position:relative so the strip can be absolutely positioned */
+    .msg-row {
+      position: relative;
+      padding-right: 56px; /* make room for the edit strip */
+    }
+
+    .msg-edit-zone {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg3);
+      border-left: 1px solid var(--border);
+      border-radius: 0 3px 3px 0;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .msg-edit-zone:hover {
+      background: var(--bg4);
+      color: var(--accent);
+    }
+
+    /* ---- Hide button on rows ---- */
+    .msg-hide-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0 0.25rem;
+      line-height: 1;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .msg-hide-btn:hover { color: var(--red); }
+    .msg-row.is-hidden .msg-hide-btn { color: var(--accent-dim); }
+    .msg-row.is-hidden .msg-hide-btn:hover { color: var(--accent); }
+
+    /* Hidden message rows: muted, name struck through */
+    .msg-row.is-hidden {
+      opacity: 0.4;
+    }
+    .msg-row.is-hidden .msg-row-name {
+      text-decoration: line-through;
+    }
+    .msg-row.is-hidden .msg-edit-zone {
+      opacity: 0.5;
+    }
+
+    /* ---- Index label on message rows ---- */
+    .msg-row-index {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    /* "edited" badge on message rows */
+    .msg-edited-badge {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--accent);
+      background: rgba(232,163,58,0.1);
+      border: 1px solid var(--accent-dim);
+      border-radius: 2px;
+      padding: 0 0.3rem;
+    }
+
+    /* ================================================================
+       PREVIEW / EDIT OVERLAY
+    ================================================================ */
+    #preview-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 90;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+    #preview-overlay.open { display: flex; }
+
+    #preview-panel {
+      width: 480px;
+      max-width: 90vw;
+      height: 100%;
+      background: var(--bg2);
+      border-left: 1px solid var(--border2);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+      animation: slideIn 0.18s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(40px); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    #preview-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    #preview-header .preview-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    #preview-header .preview-name.is-user   { color: var(--blue); }
+    #preview-header .preview-name.is-system { color: var(--yellow); }
+    #preview-header .preview-name.is-char   { color: var(--green); }
+
+    #preview-header .preview-index {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    #preview-close {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #preview-close:hover { color: var(--text); border-color: var(--text-dim); }
+
+    #preview-meta {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .preview-meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-meta-label {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .preview-meta-value {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    #preview-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0.75rem 1rem;
+      overflow: hidden;
+    }
+
+    #preview-body label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    #preview-textarea {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      padding: 0.6rem 0.75rem;
+      outline: none;
+      resize: none;
+      transition: border-color 0.15s;
+    }
+    #preview-textarea:focus { border-color: var(--accent-dim); }
+    /* Unsaved changes indicator */
+    #preview-textarea.dirty { border-color: var(--yellow); }
+
+    #preview-footer {
+      padding: 0.6rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    #preview-assigned-info {
+      flex: 1;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    #preview-save-btn {
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #preview-save-btn:hover { background: rgba(232,163,58,0.15); }
+    #preview-save-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    #preview-discard-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    #preview-discard-btn:hover { color: var(--red); border-color: var(--red); }
+
+    /* ================================================================
+       SIDEBAR TABS
+    ================================================================ */
+    #sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-tab {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      cursor: pointer;
+      color: var(--text-dim);
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .sidebar-tab:hover { color: var(--text); }
+    .sidebar-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Tab content panes — only one visible at a time */
+    .tab-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .tab-pane.active { display: flex; }
+
+    /* ================================================================
+       STYLES PANEL (globals + character dashboard)
+    ================================================================ */
+    #styles-tab-pane {
+      overflow-y: auto;
+      flex: 1;
+    }
+    #styles-tab-pane::-webkit-scrollbar { width: 4px; }
+    #styles-tab-pane::-webkit-scrollbar-track { background: transparent; }
+    #styles-tab-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Accordion sections */
+    .accordion {
+      border-bottom: 1px solid var(--border);
+    }
+    .accordion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      transition: color 0.15s;
+    }
+    .accordion-header:hover { color: var(--text); }
+    .accordion-toggle { font-size: 0.6rem; transition: transform 0.15s; }
+    .accordion.open .accordion-toggle { transform: rotate(90deg); }
+    .accordion-body {
+      display: none;
+      padding: 0.5rem 0.75rem 0.75rem;
+    }
+    .accordion.open .accordion-body { display: block; }
+
+    /* Style fields inside accordions */
+    .style-field {
+      margin-bottom: 0.6rem;
+    }
+    .style-field label {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.25rem;
+    }
+    .style-field input[type="text"],
+    .style-field input[type="url"],
+    .style-field textarea,
+    .style-field select {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      padding: 0.3rem 0.5rem;
+      outline: none;
+      transition: border-color 0.15s;
+      resize: none;
+    }
+    .style-field input:focus,
+    .style-field textarea:focus,
+    .style-field select:focus { border-color: var(--accent-dim); }
+    .style-field select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a70'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.5rem center;
+      padding-right: 1.5rem;
+      cursor: pointer;
+    }
+
+    /* Image upload field */
+    .img-upload-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .img-thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      object-fit: cover;
+      background: var(--bg3);
+      flex-shrink: 0;
+    }
+    .img-thumb.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+    .img-upload-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .img-upload-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+    .img-clear-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      transition: color 0.15s;
+    }
+    .img-clear-btn:hover { color: var(--red); }
+
+    /* ----------------------------------------------------------------
+       COLOR PICKER COMPONENT
+    ---------------------------------------------------------------- */
+    .color-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .color-swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    .color-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      flex-shrink: 0;
+    }
+    .color-swatch:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--border2);
+    }
+    .color-swatch.active {
+      box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--accent);
+    }
+    /* The "custom" swatch wraps a hidden native color input */
+    .color-swatch-custom {
+      position: relative;
+      overflow: hidden;
+      background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+    }
+    .color-swatch-custom input[type="color"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      border: none;
+    }
+    .color-hex-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .color-hex-preview {
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      border: 1px solid var(--border2);
+      flex-shrink: 0;
+    }
+    .color-hex-input {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .color-hex-input:focus { border-color: var(--accent-dim); }
+    .color-clear-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .color-clear-btn:hover { color: var(--red); border-color: var(--red); }
+
+    /* ----------------------------------------------------------------
+       CHARACTER CARDS
+    ---------------------------------------------------------------- */
+    .char-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      overflow: hidden;
+    }
+    .char-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .char-card-header:hover { background: var(--bg4); }
+    .char-card-name {
+      flex: 1;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .char-card-toggle { font-size: 0.6rem; color: var(--text-muted); transition: transform 0.15s; }
+    .char-card.open .char-card-toggle { transform: rotate(90deg); }
+    .char-card-body {
+      display: none;
+      padding: 0.5rem 0.6rem 0.6rem;
+      border-top: 1px solid var(--border);
+    }
+    .char-card.open .char-card-body { display: block; }
+    .char-reset-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-muted);
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 0.5rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .char-reset-btn:hover { color: var(--red); border-color: var(--red); }
+
+    /* ================================================================
+       STYLE PREVIEW PANE (replaces message list in Styles tab)
+    ================================================================ */
+    #style-preview-pane {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+    #style-preview-pane.active { display: flex; }
+
+    #preview-nav {
+      height: 40px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+    #preview-nav .nav-label {
+      flex: 1;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+    .preview-nav-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      width: 26px;
+      height: 26px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .preview-nav-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+    /* The preview stage — shows background + bubble */
+    #preview-stage {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;   /* don't clip tall content vertically */
+      justify-content: center;
+      padding: 2rem;
+      background: #1a1a2e; /* default, overridden by JS */
+      background-size: cover;
+      background-position: center;
+      overflow-y: auto;          /* allow scrolling for large fonts/long messages */
+      overflow-x: hidden;
+      transition: background-color 0.3s;
+    }
+    #preview-stage::-webkit-scrollbar { width: 6px; }
+    #preview-stage::-webkit-scrollbar-track { background: transparent; }
+    #preview-stage::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    /* The rendered message bubble */
+    .preview-bubble-wrap {
+      max-width: 520px;
+      width: 100%;
+      margin-top: auto;   /* push to vertical center when content is short */
+      margin-bottom: auto;
+    }
+    .preview-bubble-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .preview-portrait {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .preview-bubble-speaker {
+      font-size: 0.85rem;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+    .preview-bubble {
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      line-height: 1.7;
+      backdrop-filter: blur(8px);
+      background: rgba(0,0,0,0.45);
+    }
+
+    /* ---- Preset bar ---- */
+    .preset-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .preset-bar select {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      outline: none;
+      appearance: none;
+      cursor: pointer;
+    }
+    .preset-bar select:focus { border-color: var(--accent-dim); }
+
+    /* Message override identity header */
+    .msg-override-header {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .msg-override-header .oh-name { color: var(--accent); font-weight: 600; }
+    .msg-override-header .oh-index { color: var(--text-muted); }
+
+    /* Fields with active overrides get an amber left border */
+    .style-field.has-override > label {
+      color: var(--accent);
+    }
+    .style-field.has-override {
+      border-left: 2px solid var(--accent-dim);
+      padding-left: 0.4rem;
+      margin-left: -0.4rem;
+    }
+
+    /* ================================================================
+       MODAL (for new project confirm, delete warnings)
+    ================================================================ */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal-box {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 5px;
+      padding: 1.5rem;
+      width: 340px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    #modal-box h3 {
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    #modal-box p {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    .modal-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-btn:hover { color: var(--text); border-color: var(--text-dim); }
+    .modal-btn.confirm { color: var(--red); border-color: var(--red); }
+    .modal-btn.confirm:hover { background: rgba(192,80,80,0.1); }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <span class="app-name">STSS Editor</span>
+    <span class="project-title-display">
+      Project: <span id="title-display">—</span>
+    </span>
+    <button class="top-btn" id="btn-new-project">New Project</button>
+    <button class="top-btn" id="btn-load-project">Load Project</button>
+    <input type="file" id="load-project-input" accept=".json" style="display:none">
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div id="layout">
+
+    <!-- LEFT SIDEBAR -->
+    <div id="sidebar">
+
+      <!-- Tab switcher -->
+      <div id="sidebar-tabs">
+        <div class="sidebar-tab active" data-tab="structure">Structure</div>
+        <div class="sidebar-tab" data-tab="styles">Styles</div>
+      </div>
+
+      <!-- ── STRUCTURE TAB ── -->
+      <div class="tab-pane active" id="tab-structure">
+
+        <!-- Project metadata -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">Project Info</div>
+          <div id="project-info">
+            <div class="meta-field">
+              <label>Title</label>
+              <input type="text" id="meta-title" placeholder="Story title">
+            </div>
+            <div class="meta-field">
+              <label>Author</label>
+              <input type="text" id="meta-author" placeholder="Author name">
+            </div>
+            <div class="meta-field">
+              <label>Description</label>
+              <textarea id="meta-desc" rows="2" placeholder="Short blurb…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">Import .jsonl</div>
+          <div id="import-zone">
+            Drop or click to import .jsonl
+            <input type="file" id="import-file" accept=".jsonl,.json">
+          </div>
+          <div id="import-stats"></div>
+        </div>
+
+        <!-- Structure tree -->
+        <div class="sidebar-section" style="flex:1; display:flex; flex-direction:column; overflow:hidden; border-bottom:none;">
+          <div class="sidebar-section-header">
+            Structure
+            <div class="hdr-actions">
+              <button class="icon-btn" title="New root node" id="btn-add-root">+</button>
+              <button class="icon-btn" id="add-child-btn" title="New child node" style="display:none;">↳</button>
+              <button class="icon-btn danger" id="del-node-btn" title="Delete selected node" style="display:none;">×</button>
+            </div>
+          </div>
+          <div id="tree-container">
+            <div class="tree-empty" id="tree-empty">
+              No structure yet.<br>Click + to add a root node.
+            </div>
+            <div id="tree-root"></div>
+          </div>
+        </div>
+
+      </div><!-- /tab-structure -->
+
+      <!-- ── STYLES TAB ── -->
+      <div class="tab-pane" id="tab-styles">
+        <div id="styles-tab-pane">
+
+          <!-- Globals accordion -->
+          <div class="accordion open" id="accord-globals">
+            <div class="accordion-header">
+              Globals
+              <span class="accordion-toggle">▶</span>
+            </div>
+            <div class="accordion-body">
+
+              <div class="style-field">
+                <label>Background Image</label>
+                <div class="img-upload-row">
+                  <div class="img-thumb empty" id="glob-bg-thumb">none</div>
+                  <button class="img-upload-btn" id="btn-glob-bg-upload">Upload</button>
+                  <button class="img-clear-btn" id="btn-glob-bg-clear" title="Clear">✕</button>
+                  <input type="file" id="glob-bg-file" accept="image/*" style="display:none">
+                </div>
+              </div>
+
+              <div class="style-field">
+                <label>Background Color</label>
+                <div id="color-picker-glob-bg"></div>
+              </div>
+
+              <div class="style-field">
+                <label>Background CSS (advanced)</label>
+                <input type="text" id="glob-bg-css"
+                       placeholder="e.g. linear-gradient(#1a1a2e, #2a1a3e)">
+              </div>
+
+              <div class="style-field">
+                <label>Font Family</label>
+                <select id="glob-font-select">
+                  <option value="">— pick a font —</option>
+                  <option value="'Crimson Pro', Georgia, serif">Crimson Pro</option>
+                  <option value="'Lora', Georgia, serif">Lora</option>
+                  <option value="'EB Garamond', Georgia, serif">EB Garamond</option>
+                  <option value="'Libre Baskerville', Georgia, serif">Libre Baskerville</option>
+                  <option value="'Merriweather', Georgia, serif">Merriweather</option>
+                  <option value="'Raleway', sans-serif">Raleway</option>
+                  <option value="'Nunito', sans-serif">Nunito</option>
+                  <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+                  <option value="custom">Custom…</option>
+                </select>
+                <input type="text" id="glob-font-custom" placeholder="CSS font stack"
+                       style="margin-top:0.3rem;">
+              </div>
+
+              <div class="style-field">
+                <label>Font Size</label>
+                <input type="text" id="glob-font-size" placeholder="e.g. 1rem">
+              </div>
+
+              <div class="style-field">
+                <label>Text Color</label>
+                <div id="color-picker-glob-text"></div>
+              </div>
+
+              <div class="style-field">
+                <label>Bubble Background Color</label>
+                <div id="color-picker-glob-bubble-bg"></div>
+              </div>
+
+              <div class="style-field">
+                <label>Bubble Background Opacity</label>
+                <input type="text" id="glob-bubble-bg-opacity"
+                       placeholder="0 – 1, e.g. 0.45">
+              </div>
+
+              <div class="style-field">
+                <label>Bubble CSS (advanced)</label>
+                <textarea id="glob-bubble-css" rows="2"
+                          placeholder="Extra CSS for message bubbles…"></textarea>
+              </div>
+
+              <div class="style-field">
+                <label>Global Music URL</label>
+                <input type="url" id="glob-music-url" placeholder="https://…">
+              </div>
+
+            </div>
+          </div><!-- /accord-globals -->
+
+          <!-- Character dashboard accordion -->
+          <div class="accordion open" id="accord-chars">
+            <div class="accordion-header">
+              Characters
+              <span class="accordion-toggle">▶</span>
+            </div>
+            <div class="accordion-body">
+              <div id="char-cards-container">
+                <div style="color:var(--text-muted); font-size:0.78rem; font-style:italic;">
+                  Import a .jsonl to populate characters.
+                </div>
+              </div>
+            </div>
+          </div><!-- /accord-chars -->
+
+          <!-- Messages accordion -->
+          <div class="accordion open" id="accord-messages">
+            <div class="accordion-header">
+              Messages
+              <span class="accordion-toggle">▶</span>
+            </div>
+            <div class="accordion-body">
+              <!-- Preset bar -->
+              <div class="preset-bar">
+                <select id="preset-select" title="Load a saved preset">
+                  <option value="">— presets —</option>
+                </select>
+                <button class="icon-btn" id="btn-preset-load" title="Apply preset to this message">↓</button>
+                <button class="icon-btn" id="btn-preset-save" title="Save current overrides as preset">+</button>
+                <button class="icon-btn danger" id="btn-preset-delete" title="Delete selected preset">×</button>
+              </div>
+              <!-- Message identity header -->
+              <div id="msg-override-header" class="msg-override-header">
+                No message selected
+              </div>
+              <!-- Override fields populated by JS -->
+              <div id="msg-override-fields"></div>
+              <!-- Clear all overrides -->
+              <button class="char-reset-btn" id="btn-msg-clear-overrides">
+                Clear all overrides on this message
+              </button>
+            </div>
+          </div><!-- /accord-messages -->
+
+        </div>
+      </div><!-- /tab-styles -->
+
+      <!-- Export footer (always visible) -->
+      <div id="sidebar-footer">
+        <button class="export-btn" id="btn-export">Export Payload JSON</button>
+        <div class="save-status" id="save-status">No project loaded</div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+    <!-- RIGHT PANEL -->
+    <div id="main-panel">
+
+      <!-- Style preview pane (shown when Styles tab active) -->
+      <div id="style-preview-pane">
+        <div id="preview-nav">
+          <button class="preview-nav-btn" id="btn-prev-msg">◀</button>
+          <button class="preview-nav-btn" id="btn-next-msg">▶</button>
+          <span class="nav-label" id="preview-nav-label">No messages</span>
+        </div>
+        <div id="preview-stage">
+          <div class="preview-bubble-wrap" id="preview-bubble-wrap">
+            <div class="preview-bubble-header">
+              <img class="preview-portrait" id="preview-portrait"
+                   style="display:none;" src="" alt="">
+              <div class="preview-bubble-speaker" id="preview-bubble-speaker"></div>
+            </div>
+            <div class="preview-bubble" id="preview-bubble"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel header -->
+      <div id="panel-header">
+        <div id="node-breadcrumb">
+          <span style="color:var(--text-muted)">Select a node to assign messages</span>
+        </div>
+        <span id="sel-count"></span>
+        <button id="unassign-btn">Unassign</button>
+        <button id="assign-btn"  >Assign to node</button>
+      </div>
+
+      <!-- Filter bar -->
+      <div id="filter-bar">
+        <input type="text" id="filter-input-box"
+               placeholder="Filter by name or text…">
+        <button class="filter-toggle" id="toggle-unassigned"
+               >Unassigned only</button>
+        <button class="filter-toggle" id="toggle-select-all"
+               >Select all visible</button>
+      </div>
+
+      <!-- Message scroll area -->
+      <div id="msg-scroll">
+        <div class="msg-list-empty" id="msg-empty">
+          Import a .jsonl file to see messages here.
+        </div>
+        <div id="msg-list"></div>
+      </div>
+
+    </div><!-- /main-panel -->
+
+  </div><!-- /layout -->
+
+  <!-- PREVIEW / EDIT OVERLAY -->
+  <div id="preview-overlay">
+    <div id="preview-panel">
+      <div id="preview-header">
+        <span class="preview-index" id="preview-index"></span>
+        <span class="preview-name" id="preview-name"></span>
+        <button id="preview-close">✕ Close</button>
+      </div>
+      <div id="preview-meta">
+        <div class="preview-meta-item">
+          <span class="preview-meta-label">Date</span>
+          <span class="preview-meta-value" id="preview-date"></span>
+        </div>
+        <div class="preview-meta-item">
+          <span class="preview-meta-label">Model</span>
+          <span class="preview-meta-value" id="preview-model"></span>
+        </div>
+        <div class="preview-meta-item">
+          <span class="preview-meta-label">Assigned to</span>
+          <span class="preview-meta-value" id="preview-node"></span>
+        </div>
+      </div>
+      <div id="preview-body">
+        <label>Message Text</label>
+        <textarea id="preview-textarea" spellcheck="true"></textarea>
+      </div>
+      <div id="preview-footer">
+        <span id="preview-assigned-info"></span>
+        <button id="preview-discard-btn">Discard</button>
+        <button id="preview-save-btn" disabled>Save Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal-overlay">
+    <div id="modal-box">
+      <h3 id="modal-title">Confirm</h3>
+      <p id="modal-body"></p>
+      <div class="modal-actions">
+        <button class="modal-btn" id="btn-modal-cancel">Cancel</button>
+        <button class="modal-btn confirm" id="modal-confirm-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================================================
+    // STATE
+    // The entire editor state lives in these variables.
+    // 'project' is the Master Project Object from stss-core.js.
+    // ==========================================================================
+
+    let project        = null;   // the active project object
+    let selectedNodeId = null;   // id of the currently selected tree node
+    let selectedMsgs   = new Set(); // set of send_date keys that are checked
+    let lastClickedMsg = null;   // for shift-click range selection
+    let showUnassignedOnly = false; // filter toggle state
+
+    // A lookup table: send_date → node id, rebuilt whenever assignments change.
+    // Makes it fast to check "which node does this message belong to?" (O(1))
+    let assignmentMap  = {};
+
+    // ==========================================================================
+    // SECTION 1: PROJECT LIFECYCLE
+    // ==========================================================================
+
+    /**
+     * Initialises the editor with a fresh project, optionally confirming
+     * first if there's unsaved work.
+     */
+    /**
+     * Resets all editor state and creates a blank project.
+     * Defined at module scope so the modal confirm callback can reach it.
+     */
+    function doNew() {
+      // Cancel any pending autosave timer — otherwise it may fire after we
+      // clear localStorage and write stale or blank data back.
+      clearTimeout(autosaveTimer);
+      localStorage.removeItem("stss_editor_project");
+
+      // Replace the project with a fresh blank one
+      project = STSS.createProject("Untitled Story");
+      project.meta.author      = "";
+      project.meta.description = "";
+
+      // Reset all editor state variables
+      selectedNodeId     = null;
+      selectedMsgs.clear();
+      lastClickedMsg     = null;
+      assignmentMap      = {};
+      collapsedNodes.clear();
+      showUnassignedOnly = false;
+
+      // Reset filter and import UI
+      document.getElementById("toggle-unassigned").classList.remove("active");
+      document.getElementById("filter-input-box").value       = "";
+      document.getElementById("import-stats").textContent = "";
+
+      // Push the blank project to the DOM
+      syncUIToProject();
+      setSaveStatus("New project created.");
+    }
+
+    function newProject() {
+      if (project) {
+        showModal(
+          "Start New Project?",
+          "This will clear the current project. Any unsaved changes will be lost.",
+          doNew
+        );
+      } else {
+        doNew();
+      }
+    }
+
+    /**
+     * Loads a previously exported payload JSON back into the editor.
+     */
+    function loadProjectFile() {
+      document.getElementById("load-project-input").click();
+    }
+
+    document.getElementById("load-project-input").addEventListener("change", function(e) {
+      if (!e.target.files.length) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const loaded = STSS.importProject(ev.target.result);
+          project = loaded;
+          selectedNodeId = null;
+          selectedMsgs.clear();
+          rebuildAssignmentMap();
+          syncUIToProject();
+          autosave();
+          setSaveStatus("Project loaded.");
+        } catch(err) {
+          alert("Could not load project: " + err.message);
+        }
+      };
+      reader.readAsText(e.target.files[0]);
+      // Reset so the same file can be re-selected if needed
+      e.target.value = "";
+    });
+
+    /**
+     * Pushes all current project meta fields into the UI inputs.
+     * Called after loading or creating a project.
+     */
+    function syncUIToProject() {
+      document.getElementById("meta-title").value  = project.meta.title  || "";
+      document.getElementById("meta-author").value = project.meta.author || "";
+      document.getElementById("meta-desc").value   = project.meta.description || "";
+      document.getElementById("title-display").textContent = project.meta.title || "Untitled";
+      renderTree();
+      renderMessages();
+      updateBreadcrumb();
+      updateAssignBtn();
+    }
+
+    /**
+     * Called whenever a meta input changes — writes values back to the project.
+     */
+    function updateMeta() {
+      if (!project) return;
+      project.meta.title       = document.getElementById("meta-title").value;
+      project.meta.author      = document.getElementById("meta-author").value;
+      project.meta.description = document.getElementById("meta-desc").value;
+      document.getElementById("title-display").textContent = project.meta.title || "Untitled";
+      autosave();
+    }
+
+    // ==========================================================================
+    // SECTION 2: IMPORT (.jsonl)
+    // ==========================================================================
+
+    const importZone = document.getElementById("import-zone");
+    const importFile = document.getElementById("import-file");
+
+    importZone.addEventListener("click", () => importFile.click());
+
+    importZone.addEventListener("dragover", e => {
+      e.preventDefault();
+      importZone.classList.add("drag-over");
+    });
+    importZone.addEventListener("dragleave", () => {
+      importZone.classList.remove("drag-over");
+    });
+    importZone.addEventListener("drop", e => {
+      e.preventDefault();
+      importZone.classList.remove("drag-over");
+      if (e.dataTransfer.files.length) handleImportFile(e.dataTransfer.files[0]);
+    });
+    importFile.addEventListener("change", e => {
+      if (e.target.files.length) handleImportFile(e.target.files[0]);
+      e.target.value = "";
+    });
+
+    function handleImportFile(file) {
+      // If no project exists yet, create one named after the file
+      if (!project) {
+        const guessedTitle = file.name.replace(/\.(jsonl|json)$/i, "");
+        project = STSS.createProject(guessedTitle);
+        syncUIToProject();
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const { added, skipped } = STSS.ingestJsonl(e.target.result, project);
+          // Show import result in sidebar
+          document.getElementById("import-stats").innerHTML =
+            `<span class="ok">+${added} added</span>`
+            + (skipped ? `  <span class="dim">${skipped} skipped</span>` : "");
+          renderMessages();
+          autosave();
+          setSaveStatus("Imported. Autosaved.");
+        } catch(err) {
+          document.getElementById("import-stats").innerHTML =
+            `<span style="color:var(--red)">Error: ${escapeHtml(err.message)}</span>`;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ==========================================================================
+    // SECTION 3: STRUCTURE TREE
+    // ==========================================================================
+
+    /**
+     * Adds a new node to the tree.
+     * If parentId is null, the node is added at the root level.
+     * If parentId is provided, the node is added as a child of that node.
+     *
+     * @param {string|null} parentId
+     */
+    function addNode(parentId) {
+      if (!project) { newProject(); }
+
+      const node = STSS.createNode("Chapter", "New Chapter");
+
+      if (parentId === null) {
+        // Add at root
+        project.structure.push(node);
+      } else {
+        const parent = STSS.findNodeById(project.structure, parentId);
+        if (!parent) return;
+
+        // If the parent already has messages assigned, warn the user.
+        // A node can't be both a branch (has children) and a leaf (has messages).
+        if (parent.messages.length > 0) {
+          showModal(
+            "Move Messages?",
+            `"${parent.title}" has ${parent.messages.length} message(s) assigned directly. ` +
+            `Adding a child will make it a branch node — its messages will need to be ` +
+            `reassigned to child nodes. Continue?`,
+            () => {
+              parent.children.push(node);
+              renderTree();
+              selectNode(node.id);
+              autosave();
+            }
+          );
+          return;
+        }
+
+        parent.children.push(node);
+      }
+
+      renderTree();
+      selectNode(node.id);
+      // Focus the title for immediate renaming
+      setTimeout(() => startRename(node.id), 50);
+      autosave();
+    }
+
+    /**
+     * Adds a child to the currently selected node.
+     */
+    function addChildNode() {
+      if (selectedNodeId) addNode(selectedNodeId);
+    }
+
+    /**
+     * Deletes the currently selected node.
+     * Warns if the node has messages assigned.
+     */
+    function deleteSelectedNode() {
+      if (!selectedNodeId || !project) return;
+      const node = STSS.findNodeById(project.structure, selectedNodeId);
+      if (!node) return;
+
+      // Count total messages in this subtree
+      const msgCount = countMessagesInSubtree(node);
+      const hasChildren = node.children.length > 0;
+
+      let warningText = `Delete "${node.title}"?`;
+      if (hasChildren) warningText += ` This will also delete all child nodes.`;
+      if (msgCount > 0) warningText += ` ${msgCount} message assignment(s) will be lost.`;
+
+      showModal("Delete Node", warningText, () => {
+        // Unregister all message assignments in this subtree
+        unassignSubtree(node);
+        // Remove from tree
+        removeNodeFromTree(project.structure, selectedNodeId);
+        selectedNodeId = null;
+        renderTree();
+        renderMessages();
+        updateBreadcrumb();
+        updateAssignBtn();
+        autosave();
+      });
+    }
+
+    /**
+     * Recursively counts how many messages are assigned anywhere in a subtree.
+     */
+    function countMessagesInSubtree(node) {
+      let count = node.messages.length;
+      for (const child of node.children) {
+        count += countMessagesInSubtree(child);
+      }
+      return count;
+    }
+
+    /**
+     * Recursively removes all message assignments in a subtree from assignmentMap.
+     */
+    function unassignSubtree(node) {
+      for (const key of node.messages) {
+        delete assignmentMap[key];
+      }
+      for (const child of node.children) {
+        unassignSubtree(child);
+      }
+    }
+
+    /**
+     * Removes a node by id from the tree array (recursive).
+     * Returns true if the node was found and removed.
+     */
+    function removeNodeFromTree(arr, id) {
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i].id === id) {
+          arr.splice(i, 1);
+          return true;
+        }
+        if (removeNodeFromTree(arr[i].children, id)) return true;
+      }
+      return false;
+    }
+
+    /**
+     * Selects a node by id, updating the UI.
+     */
+    function selectNode(id) {
+      selectedNodeId = id;
+      selectedMsgs.clear();
+      renderTree();
+      updateBreadcrumb();
+      updateAssignBtn();
+      renderMessages(); // re-render to clear selection highlights
+    }
+
+    /**
+     * Starts inline rename for a node — makes its title contenteditable.
+     */
+    function startRename(id) {
+      const titleEl = document.querySelector(`.tree-node-title[data-id="${id}"]`);
+      if (!titleEl) return;
+      titleEl.contentEditable = "true";
+      titleEl.focus();
+      // Select all text for easy replacement
+      const range = document.createRange();
+      range.selectNodeContents(titleEl);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+    }
+
+    /**
+     * Finishes rename — saves the new title to the project.
+     */
+    function finishRename(id, el) {
+      const node = STSS.findNodeById(project.structure, id);
+      if (node) {
+        // The text content of the element is the new title
+        node.title = el.textContent.trim() || "Untitled";
+        el.textContent = node.title;
+      }
+      el.contentEditable = "false";
+      renderTree(); // re-render to update msg counts etc.
+      updateBreadcrumb();
+      autosave();
+    }
+
+    /**
+     * Rebuilds the assignment lookup map from scratch.
+     * Run after loading a project or whenever assignments change.
+     */
+    function rebuildAssignmentMap() {
+      assignmentMap = {};
+      function walk(nodes) {
+        for (const node of nodes) {
+          for (const key of node.messages) {
+            assignmentMap[key] = node.id;
+          }
+          walk(node.children);
+        }
+      }
+      walk(project.structure);
+    }
+
+    // ---- Tree rendering ----
+
+    /**
+     * Renders the full structure tree into #tree-root.
+     * Each call does a full re-render (the tree is small enough that this is fine).
+     */
+    function renderTree() {
+      const root     = document.getElementById("tree-root");
+      const empty    = document.getElementById("tree-empty");
+      const addChild = document.getElementById("add-child-btn");
+      const delBtn   = document.getElementById("del-node-btn");
+
+      if (!project || project.structure.length === 0) {
+        empty.style.display = "block";
+        root.innerHTML = "";
+        addChild.style.display = "none";
+        delBtn.style.display   = "none";
+        return;
+      }
+
+      empty.style.display = "none";
+
+      // Show/hide the child and delete buttons based on selection
+      addChild.style.display = selectedNodeId ? "flex" : "none";
+      delBtn.style.display   = selectedNodeId ? "flex" : "none";
+
+      // Recursively build the tree HTML
+      root.innerHTML = renderNodeList(project.structure, 0);
+
+      // Wire up events on the rendered nodes
+      root.querySelectorAll(".tree-node-row").forEach(row => {
+        const id = row.dataset.id;
+
+        // Single click = select
+        row.addEventListener("click", () => selectNode(id));
+
+        // Double click = start rename
+        row.addEventListener("dblclick", e => {
+          e.stopPropagation();
+          startRename(id);
+        });
+      });
+
+      // Wire up title rename save (blur and Enter key)
+      root.querySelectorAll(".tree-node-title").forEach(titleEl => {
+        const id = titleEl.dataset.id;
+        titleEl.addEventListener("blur",    ()  => finishRename(id, titleEl));
+        titleEl.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); titleEl.blur(); }
+          if (e.key === "Escape") {
+            // Restore original title
+            const node = STSS.findNodeById(project.structure, id);
+            if (node) titleEl.textContent = node.title;
+            titleEl.blur();
+          }
+        });
+        // Prevent click from also triggering the row's select handler
+        titleEl.addEventListener("click", e => e.stopPropagation());
+      });
+
+      // Wire up delete buttons
+      root.querySelectorAll(".tree-del-btn").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          selectedNodeId = btn.dataset.id;
+          deleteSelectedNode();
+        });
+      });
+
+      // Wire up toggle (expand/collapse) buttons
+      root.querySelectorAll(".tree-toggle:not(.leaf)").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          toggleNodeCollapse(id);
+        });
+      });
+    }
+
+    // Track which nodes are collapsed — just a Set of ids
+    const collapsedNodes = new Set();
+
+    function toggleNodeCollapse(id) {
+      if (collapsedNodes.has(id)) {
+        collapsedNodes.delete(id);
+      } else {
+        collapsedNodes.add(id);
+      }
+      renderTree();
+    }
+
+    /**
+     * Recursively builds HTML for a list of nodes at a given depth.
+     * depth controls the indentation.
+     */
+    function renderNodeList(nodes, depth) {
+      let html = "";
+      for (const node of nodes) {
+        html += renderNodeHTML(node, depth);
+      }
+      return html;
+    }
+
+    function renderNodeHTML(node, depth) {
+      const isSelected  = node.id === selectedNodeId;
+      const isLeaf      = STSS.isLeafNode(node);
+      const isCollapsed = collapsedNodes.has(node.id);
+      const msgCount    = node.messages.length;
+
+      // Indentation: 12px base + 14px per depth level
+      const indent = 10 + depth * 16;
+
+      // Toggle icon: ▶ for collapsed branches, ▼ for open, · for leaves
+      let toggleHtml = "";
+      if (!isLeaf) {
+        const toggleClass = isCollapsed ? "" : "open";
+        toggleHtml = `<span class="tree-toggle ${toggleClass}" data-id="${node.id}">▶</span>`;
+      } else {
+        toggleHtml = `<span class="tree-toggle leaf">·</span>`;
+      }
+
+      let html = `
+        <div class="tree-node" data-id="${node.id}">
+          <div class="tree-node-row ${isSelected ? "selected" : ""}"
+               data-id="${node.id}"
+               style="padding-left:${indent}px">
+            ${toggleHtml}
+            <span class="tree-type-badge">${escapeHtml(node.type)}</span>
+            <span class="tree-node-title" data-id="${node.id}"
+                  contenteditable="false">${escapeHtml(node.title)}</span>
+            ${isLeaf && msgCount > 0
+              ? `<span class="tree-msg-count">${msgCount}</span>`
+              : ""}
+            <button class="icon-btn danger tree-del-btn"
+                    data-id="${node.id}" title="Delete">×</button>
+          </div>
+      `;
+
+      // Render children if not collapsed
+      if (!isLeaf && !isCollapsed) {
+        html += renderNodeList(node.children, depth + 1);
+      }
+
+      html += `</div>`;
+      return html;
+    }
+
+    // ==========================================================================
+    // SECTION 4: MESSAGE LIST
+    // ==========================================================================
+
+    /**
+     * Renders the message list, applying current filter settings.
+     * Called after any state change that affects what's visible.
+     */
+    function renderMessages() {
+      const listEl    = document.getElementById("msg-list");
+      const emptyEl   = document.getElementById("msg-empty");
+      const filterVal = document.getElementById("filter-input-box").value.toLowerCase();
+
+      if (!project || Object.keys(project.messages).length === 0) {
+        emptyEl.style.display = "block";
+        listEl.innerHTML = "";
+        return;
+      }
+
+      emptyEl.style.display = "none";
+
+      // Get all message keys in insertion order
+      const keys = Object.keys(project.messages);
+      let html   = "";
+      let visibleCount = 0;
+
+      for (const key of keys) {
+        const msg        = project.messages[key];
+        const isAssigned = assignmentMap[key] !== undefined;
+        const isSelected = selectedMsgs.has(key);
+
+        // Apply "unassigned only" filter
+        if (showUnassignedOnly && isAssigned) continue;
+
+        // Apply text filter
+        if (filterVal) {
+          const haystack = (msg.name + " " + msg.mes).toLowerCase();
+          if (!haystack.includes(filterVal)) continue;
+        }
+
+        visibleCount++;
+
+        // Determine speaker type for colour coding.
+        // All messages get 'is-char' as baseline so style inheritance works
+        // uniformly; is-user / is-system are appended as additional flags.
+        let typeClass = "is-char";
+        if (msg.is_user)   typeClass += " is-user";
+        if (msg.is_system) typeClass += " is-system";
+
+        // Resolve live styles for this message so the list reflects
+        // any character color/shadow overrides immediately.
+        const resolvedStyle = STSS.resolveStyle(project, key);
+        let dynamicInlineStyles = "";
+        if (resolvedStyle.text_color) {
+          dynamicInlineStyles += `color: ${resolvedStyle.text_color}; `;
+        }
+        if (resolvedStyle.text_shadow) {
+          dynamicInlineStyles += `text-shadow: ${resolvedStyle.text_shadow}; `;
+        }
+
+        // Find the node name this message is assigned to (for the badge)
+        let badgeHtml = "";
+        if (isAssigned) {
+          const nodeId = assignmentMap[key];
+          const node   = STSS.findNodeById(project.structure, nodeId);
+          const label  = node ? escapeHtml(node.title) : "?";
+          badgeHtml    = `<span class="msg-node-badge">${label}</span>`;
+        }
+
+        // Truncate message text for preview
+        const preview    = truncate(msg.mes, 120);
+        const indexStr   = msg.msg_index !== undefined ? `#${msg.msg_index}` : "";
+        const editedBadge = msg.edited
+          ? `<span class="msg-edited-badge">edited</span>`
+          : "";
+        const isHidden   = msg.hidden === true;
+        // Eye icon: open eye = visible, struck eye = hidden
+        const eyeIcon    = isHidden ? "&#x1F648;" : "&#x1F441;";
+        const hideTitle  = isHidden ? "Show in export" : "Hide from export";
+
+        html += `
+          <div class="msg-row ${isSelected ? "selected" : ""} ${isAssigned ? "assigned" : ""} ${isHidden ? "is-hidden" : ""}"
+               data-key="${escapeHtml(key)}">
+            <div class="msg-check"></div>
+            <div class="msg-body">
+              <div class="msg-row-header">
+                <span class="msg-row-name ${typeClass}" style="${dynamicInlineStyles}">${escapeHtml(msg.name)}</span>
+                <span class="msg-row-index">${indexStr}</span>
+                <span class="msg-row-date">${formatDate(key)}</span>
+                ${badgeHtml}
+                ${editedBadge}
+                <button class="msg-hide-btn" data-hide-key="${escapeHtml(key)}"
+                        title="${hideTitle}">${eyeIcon}</button>
+              </div>
+              <div class="msg-row-text">${escapeHtml(preview)}</div>
+            </div>
+            <div class="msg-edit-zone" data-edit-key="${escapeHtml(key)}" title="Edit message">✎</div>
+          </div>
+        `;
+      }
+
+      listEl.innerHTML = html;
+
+      // Wire up click handlers:
+      // - .msg-edit-zone  → open preview/edit overlay
+      // - .msg-hide-btn   → toggle hidden flag
+      // - anywhere else   → selection (checkbox logic)
+      listEl.querySelectorAll(".msg-row").forEach(row => {
+        row.addEventListener("click", e => {
+          if (e.target.closest(".msg-edit-zone")) {
+            // Edit zone strip clicked — open preview
+            openPreview(row.dataset.key);
+          } else if (e.target.closest(".msg-hide-btn")) {
+            // Hide button clicked — toggle visibility, don't affect selection
+            toggleHidden(e.target.closest(".msg-hide-btn").dataset.hideKey);
+          } else {
+            // Everywhere else — selection logic
+            handleMsgClick(e, row.dataset.key);
+          }
+        });
+      });
+
+      updateSelCountDisplay();
+    }
+
+    // ---- Message selection ----
+
+    /**
+     * Handles a click on a message row with full modifier support:
+     *   - Plain click:      select only this message
+     *   - Ctrl/Cmd + click: toggle this message
+     *   - Shift + click:    select range from lastClickedMsg to this one
+     */
+    function handleMsgClick(e, key) {
+      if (e.shiftKey && lastClickedMsg) {
+        // Range select: find all visible row elements between lastClickedMsg and key
+        const rows    = Array.from(document.querySelectorAll(".msg-row"));
+        const keys    = rows.map(r => r.dataset.key);
+        const fromIdx = keys.indexOf(lastClickedMsg);
+        const toIdx   = keys.indexOf(key);
+
+        if (fromIdx !== -1 && toIdx !== -1) {
+          const lo = Math.min(fromIdx, toIdx);
+          const hi = Math.max(fromIdx, toIdx);
+          for (let i = lo; i <= hi; i++) {
+            selectedMsgs.add(keys[i]);
+          }
+        }
+      } else if (e.ctrlKey || e.metaKey) {
+        // Toggle individual
+        if (selectedMsgs.has(key)) {
+          selectedMsgs.delete(key);
+        } else {
+          selectedMsgs.add(key);
+        }
+      } else {
+        // Plain click — select only this one
+        selectedMsgs.clear();
+        selectedMsgs.add(key);
+      }
+
+      lastClickedMsg = key;
+      renderMessages();
+      updateAssignBtn();
+    }
+
+    /**
+     * Selects or deselects all currently visible messages.
+     */
+    function toggleSelectAll() {
+      const rows = Array.from(document.querySelectorAll(".msg-row"));
+      const keys = rows.map(r => r.dataset.key);
+
+      // If all visible are selected, deselect all; otherwise select all
+      const allSelected = keys.every(k => selectedMsgs.has(k));
+      if (allSelected) {
+        keys.forEach(k => selectedMsgs.delete(k));
+      } else {
+        keys.forEach(k => selectedMsgs.add(k));
+      }
+
+      renderMessages();
+      updateAssignBtn();
+    }
+
+    function toggleUnassignedFilter() {
+      showUnassignedOnly = !showUnassignedOnly;
+      const btn = document.getElementById("toggle-unassigned");
+      btn.classList.toggle("active", showUnassignedOnly);
+      renderMessages();
+    }
+
+    // ==========================================================================
+    // SECTION 5: ASSIGNMENT
+    // ==========================================================================
+
+    /**
+     * Assigns all currently selected messages to the selected leaf node.
+     */
+    function assignSelected() {
+      if (!selectedNodeId || selectedMsgs.size === 0) return;
+
+      const node = STSS.findNodeById(project.structure, selectedNodeId);
+      if (!node || !STSS.isLeafNode(node)) return;
+
+      for (const key of selectedMsgs) {
+        // If already assigned elsewhere, remove from that node first
+        const prevNodeId = assignmentMap[key];
+        if (prevNodeId && prevNodeId !== selectedNodeId) {
+          const prevNode = STSS.findNodeById(project.structure, prevNodeId);
+          if (prevNode) {
+            prevNode.messages = prevNode.messages.filter(k => k !== key);
+          }
+        }
+
+        // Add to this node if not already there
+        if (!node.messages.includes(key)) {
+          node.messages.push(key);
+        }
+        assignmentMap[key] = selectedNodeId;
+      }
+
+      selectedMsgs.clear();
+      lastClickedMsg = null;
+      renderTree();
+      renderMessages();
+      updateAssignBtn();
+      autosave();
+      setSaveStatus("Assigned. Autosaved.");
+    }
+
+    /**
+     * Unassigns all currently selected messages from whatever node they're in.
+     */
+    function unassignSelected() {
+      if (selectedMsgs.size === 0) return;
+
+      for (const key of selectedMsgs) {
+        const nodeId = assignmentMap[key];
+        if (!nodeId) continue;
+        const node = STSS.findNodeById(project.structure, nodeId);
+        if (node) {
+          node.messages = node.messages.filter(k => k !== key);
+        }
+        delete assignmentMap[key];
+      }
+
+      selectedMsgs.clear();
+      lastClickedMsg = null;
+      renderTree();
+      renderMessages();
+      updateAssignBtn();
+      autosave();
+      setSaveStatus("Unassigned. Autosaved.");
+    }
+
+    // ==========================================================================
+    // SECTION 6: UI STATE HELPERS
+    // ==========================================================================
+
+    /**
+     * Updates the breadcrumb header to show which node is active.
+     */
+    function updateBreadcrumb() {
+      const el = document.getElementById("node-breadcrumb");
+      if (!selectedNodeId || !project) {
+        el.innerHTML = `<span style="color:var(--text-muted)">Select a node to assign messages</span>`;
+        return;
+      }
+
+      const node   = STSS.findNodeById(project.structure, selectedNodeId);
+      if (!node) { el.innerHTML = ""; return; }
+
+      const isLeaf = STSS.isLeafNode(node);
+      if (isLeaf) {
+        el.innerHTML = `Assigning to: <span class="crumb-active">${escapeHtml(node.title)}</span>`;
+      } else {
+        el.innerHTML = `<span class="crumb-warn">${escapeHtml(node.title)}</span>`
+          + ` — branch node, add child nodes before assigning messages`;
+      }
+    }
+
+    /**
+     * Shows or hides the Assign / Unassign buttons based on current state.
+     */
+    function updateAssignBtn() {
+      const assignBtn   = document.getElementById("assign-btn");
+      const unassignBtn = document.getElementById("unassign-btn");
+
+      if (!selectedNodeId || selectedMsgs.size === 0) {
+        assignBtn.style.display   = "none";
+        unassignBtn.style.display = "none";
+        return;
+      }
+
+      const node        = selectedNodeId ? STSS.findNodeById(project.structure, selectedNodeId) : null;
+      const isLeaf      = node && STSS.isLeafNode(node);
+      const anyAssigned = [...selectedMsgs].some(k => assignmentMap[k] !== undefined);
+
+      // Show Assign only if target is a leaf node
+      assignBtn.style.display = isLeaf ? "block" : "none";
+
+      // Show Unassign if any selected messages are assigned somewhere
+      unassignBtn.style.display = anyAssigned ? "block" : "none";
+
+      // Update the assign button label with count
+      const count = selectedMsgs.size;
+      assignBtn.textContent = `Assign ${count} to node`;
+    }
+
+    /**
+     * Updates the selection count display in the panel header.
+     */
+    function updateSelCountDisplay() {
+      const el = document.getElementById("sel-count");
+      el.textContent = selectedMsgs.size > 0 ? `${selectedMsgs.size} selected` : "";
+    }
+
+    // ==========================================================================
+    // SECTION 7: EXPORT
+    // ==========================================================================
+
+    /**
+     * Exports the project as a downloadable payload JSON file.
+     */
+    function exportPayload() {
+      if (!project) { alert("No project to export."); return; }
+
+      const json     = STSS.exportProject(project);
+      const blob     = new Blob([json], { type: "application/json" });
+      const url      = URL.createObjectURL(blob);
+      const a        = document.createElement("a");
+      a.href         = url;
+      // Sanitise the title for use as a filename
+      a.download     = (project.meta.title || "story").replace(/[^a-z0-9_\-]/gi, "_") + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+      setSaveStatus("Exported " + a.download);
+    }
+
+    // ==========================================================================
+    // SECTION 8: AUTOSAVE (localStorage)
+    // ==========================================================================
+
+    // Debounce timer — we wait 800ms after the last change before saving,
+    // to avoid hammering localStorage on every keystroke.
+    let autosaveTimer = null;
+
+    // Warn when serialized project exceeds this size (bytes). 7MB gives headroom
+    // before the typical 10MB localStorage limit.
+    const AUTOSAVE_WARN_BYTES = 7 * 1024 * 1024;
+
+    function autosave() {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(() => {
+        if (!project) return;
+        try {
+          const serialized = STSS.exportProject(project);
+
+          // Warn if approaching quota — don't block the save, just alert the user
+          if (serialized.length > AUTOSAVE_WARN_BYTES) {
+            setSaveStatus(
+              "⚠ Project is large (" + (serialized.length / 1024 / 1024).toFixed(1)
+              + "MB) — export regularly in case autosave fails.",
+              "warn"
+            );
+          }
+
+          localStorage.setItem("stss_editor_project", serialized);
+
+          // Only update status if we didn't just set a warning
+          if (serialized.length <= AUTOSAVE_WARN_BYTES) {
+            setSaveStatus("Autosaved " + formatTime(new Date()));
+          }
+        } catch(e) {
+          if (e.name === "QuotaExceededError") {
+            setSaveStatus("⚠ Autosave failed — project too large. Export now to avoid losing work.", "warn");
+          } else {
+            setSaveStatus("Autosave failed: " + e.message, "warn");
+          }
+        }
+      }, 800);
+    }
+
+    /**
+     * Attempts to restore a project from localStorage on page load.
+     */
+    function tryRestoreAutosave() {
+      const saved = localStorage.getItem("stss_editor_project");
+      if (!saved) return;
+      try {
+        project = STSS.importProject(saved);
+        rebuildAssignmentMap();
+        syncUIToProject();
+        setSaveStatus("Restored autosave from " + formatTime(new Date(project.meta.modified)));
+      } catch(e) {
+        setSaveStatus("Could not restore autosave.");
+      }
+    }
+
+    function setSaveStatus(msg, level) {
+      const el = document.getElementById("save-status");
+      el.textContent = msg;
+      el.style.color = level === "warn" ? "var(--yellow)" : "";
+    }
+
+    // ==========================================================================
+    // SECTION 9: MODAL
+    // ==========================================================================
+
+    let modalCallback = null;
+
+    function showModal(title, body, onConfirm) {
+      document.getElementById("modal-title").textContent = title;
+      document.getElementById("modal-body").textContent  = body;
+      modalCallback = onConfirm;
+      document.getElementById("modal-overlay").classList.add("open");
+    }
+
+    function closeModal() {
+      document.getElementById("modal-overlay").classList.remove("open");
+      modalCallback = null;
+    }
+
+    // modal-confirm-btn wired in wireButtons()
+
+    // Close modal on overlay click
+    document.getElementById("modal-overlay").addEventListener("click", function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    // ==========================================================================
+    // SECTION 10: UTILITIES
+    // ==========================================================================
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g,  "&amp;")
+        .replace(/</g,  "&lt;")
+        .replace(/>/g,  "&gt;")
+        .replace(/"/g,  "&quot;");
+    }
+
+    function truncate(str, len) {
+      if (!str) return "";
+      return str.length > len ? str.slice(0, len) + "…" : str;
+    }
+
+    function formatDate(isoStr) {
+      try { return new Date(isoStr).toLocaleString(); }
+      catch(e) { return isoStr; }
+    }
+
+    function formatTime(date) {
+      try { return date.toLocaleTimeString(); }
+      catch(e) { return ""; }
+    }
+
+    // ==========================================================================
+    // SECTION 11: HIDE / SHOW MESSAGES
+    // ==========================================================================
+
+    /**
+     * Toggles the hidden flag on a message.
+     * Hidden messages remain in the project and keep their ID numbers,
+     * but are excluded from the payload export and skipped by the Reader.
+     *
+     * @param {string} key - send_date key of the message to toggle
+     */
+    function toggleHidden(key) {
+      if (!project || !project.messages[key]) return;
+      project.messages[key].hidden = !project.messages[key].hidden;
+      renderMessages();
+      autosave();
+    }
+
+    // ==========================================================================
+    // SECTION 12: PREVIEW / EDIT OVERLAY
+    // ==========================================================================
+
+    // The send_date key of the message currently open in the overlay
+    let previewKey = null;
+
+    /**
+     * Opens the preview panel for a given message.
+     * Populates all fields and resets the dirty state.
+     *
+     * @param {string} key - send_date key
+     */
+    function openPreview(key) {
+      if (!project || !project.messages[key]) return;
+      previewKey = key;
+
+      const msg      = project.messages[key];
+      const textarea = document.getElementById("preview-textarea");
+
+      // Determine speaker type for name colour
+      let typeClass = "is-char";
+      if (msg.is_user)   typeClass = "is-user";
+      if (msg.is_system) typeClass = "is-system";
+
+      // Populate header
+      document.getElementById("preview-index").textContent =
+        msg.msg_index !== undefined ? `#${msg.msg_index}` : "";
+      const nameEl = document.getElementById("preview-name");
+      nameEl.textContent = msg.name;
+      nameEl.className   = `preview-name ${typeClass}`;
+
+      // Populate meta row
+      document.getElementById("preview-date").textContent  = formatDate(key);
+      document.getElementById("preview-model").textContent = msg.model || "—";
+
+      // Assigned-to node
+      const nodeId   = assignmentMap[key];
+      const node     = nodeId ? STSS.findNodeById(project.structure, nodeId) : null;
+      document.getElementById("preview-node").textContent =
+        node ? node.title : "unassigned";
+
+      // Footer info
+      document.getElementById("preview-assigned-info").textContent =
+        msg.edited ? "✎ previously edited" : "";
+
+      // Populate textarea with current message text
+      textarea.value = msg.mes;
+      setPreviewDirty(false);
+
+      // Open the overlay
+      document.getElementById("preview-overlay").classList.add("open");
+
+      // Focus the textarea so it's immediately ready to edit
+      setTimeout(() => textarea.focus(), 50);
+    }
+
+    /**
+     * Closes the preview overlay.
+     * If there are unsaved changes, warns the user first.
+     */
+    function closePreview() {
+      const textarea = document.getElementById("preview-textarea");
+      if (textarea.classList.contains("dirty")) {
+        // Unsaved changes — confirm discard
+        showModal(
+          "Discard Changes?",
+          "You have unsaved edits to this message. Close without saving?",
+          () => {
+            document.getElementById("preview-overlay").classList.remove("open");
+            previewKey = null;
+          }
+        );
+      } else {
+        document.getElementById("preview-overlay").classList.remove("open");
+        previewKey = null;
+      }
+    }
+
+    /**
+     * Saves the edited text back to the message object.
+     * Sets msg.edited = true and triggers autosave.
+     */
+    function savePreviewEdit() {
+      if (!previewKey || !project) return;
+      const msg      = project.messages[previewKey];
+      const textarea = document.getElementById("preview-textarea");
+      const newText  = textarea.value;
+
+      msg.mes    = newText;
+      msg.edited = true;
+
+      setPreviewDirty(false);
+
+      // Update the footer info to reflect the edit
+      document.getElementById("preview-assigned-info").textContent = "✎ previously edited";
+
+      // Re-render the message list so the "edited" badge appears
+      renderMessages();
+      autosave();
+      setSaveStatus("Message edit saved. Autosaved.");
+    }
+
+    /**
+     * Discards unsaved changes, restoring the textarea to the saved text.
+     */
+    function discardPreviewEdit() {
+      if (!previewKey || !project) return;
+      document.getElementById("preview-textarea").value =
+        project.messages[previewKey].mes;
+      setPreviewDirty(false);
+    }
+
+    /**
+     * Marks the textarea as dirty (unsaved changes present) or clean.
+     * Controls the yellow border and the Save button's enabled state.
+     */
+    function setPreviewDirty(isDirty) {
+      const textarea = document.getElementById("preview-textarea");
+      const saveBtn  = document.getElementById("preview-save-btn");
+      textarea.classList.toggle("dirty", isDirty);
+      saveBtn.disabled = !isDirty;
+    }
+
+    // Wire up textarea input to detect changes
+    document.getElementById("preview-textarea").addEventListener("input", function() {
+      if (!previewKey || !project) return;
+      const original = project.messages[previewKey].mes;
+      setPreviewDirty(this.value !== original);
+    });
+
+    // Close overlay when clicking the dark background area
+    document.getElementById("preview-overlay").addEventListener("click", function(e) {
+      if (e.target === this) closePreview();
+    });
+
+    // ==========================================================================
+    // SECTION 13: SIDEBAR TABS
+    // ==========================================================================
+
+    /**
+     * Switches the sidebar between Structure and Styles tabs.
+     * Also shows/hides the message list vs style preview pane.
+     */
+    function switchTab(tabName) {
+      // Update tab button states
+      document.querySelectorAll(".sidebar-tab").forEach(t => {
+        t.classList.toggle("active", t.dataset.tab === tabName);
+      });
+      // Update tab pane visibility
+      document.querySelectorAll(".tab-pane").forEach(p => {
+        p.classList.toggle("active", p.id === "tab-" + tabName);
+      });
+
+      // Show message list OR style preview depending on tab
+      const msgScroll  = document.getElementById("msg-scroll");
+      const filterBar  = document.getElementById("filter-bar");
+      const panelHdr   = document.getElementById("panel-header");
+      const previewPane = document.getElementById("style-preview-pane");
+
+      if (tabName === "styles") {
+        panelHdr.style.display   = "none";
+        filterBar.style.display  = "none";
+        msgScroll.style.display  = "none";
+        previewPane.classList.add("active");
+        // Populate character cards, sync globals, render message overrides
+        renderCharCards();
+        syncGlobalsToUI();
+        initStylePreview();
+        renderMsgOverridePanel();
+      } else {
+        panelHdr.style.display   = "";
+        filterBar.style.display  = "";
+        msgScroll.style.display  = "";
+        previewPane.classList.remove("active");
+      }
+    }
+
+    // ==========================================================================
+    // SECTION 14: COLOR PICKER COMPONENT
+    // ==========================================================================
+
+    // Preset swatches — [label, hex] pairs
+    const COLOR_SWATCHES = [
+      // Neutral text
+      ["Soft white",   "#e8e8e8"],
+      ["Cream",        "#f5f0e8"],
+      ["Warm grey",    "#c8bfb0"],
+      ["Cool white",   "#dde8f0"],
+      ["Pale blue",    "#a8c8e8"],
+      ["Lavender",     "#c8b8e8"],
+      // Character accents
+      ["Rose",         "#f0a8b8"],
+      ["Amber",        "#e8b870"],
+      ["Sage",         "#90c8a0"],
+      ["Dusty teal",   "#80b8c0"],
+      ["Lilac",        "#b8a0d0"],
+      ["Coral",        "#e89080"],
+      // Dark/neutral
+      ["Charcoal",     "#404040"],
+      ["Deep navy",    "#1a2040"],
+      ["Off black",    "#1c1c1c"],
+      ["Pure white",   "#ffffff"],
+    ];
+
+    /**
+     * Builds a color picker component and inserts it into containerEl.
+     * onChange(hexValue) is called whenever the color changes.
+     * initialValue is the starting hex string (or null).
+     *
+     * Returns { getValue, setValue } so the caller can read/write the value.
+     */
+    function buildColorPicker(containerEl, initialValue, onChange) {
+      containerEl.innerHTML = "";
+      containerEl.classList.add("color-picker");
+
+      // Swatch row
+      const swatchRow = document.createElement("div");
+      swatchRow.className = "color-swatches";
+
+      let currentHex = initialValue || "";
+
+      // Build preset swatches
+      for (const [label, hex] of COLOR_SWATCHES) {
+        const sw = document.createElement("div");
+        sw.className   = "color-swatch";
+        sw.title       = label + " " + hex;
+        sw.style.background = hex;
+        if (hex.toLowerCase() === currentHex.toLowerCase()) sw.classList.add("active");
+        sw.addEventListener("click", () => {
+          setColor(hex);
+          onChange(hex);
+        });
+        swatchRow.appendChild(sw);
+      }
+
+      // Custom swatch (wraps native color input)
+      const customSw = document.createElement("div");
+      customSw.className = "color-swatch color-swatch-custom";
+      customSw.title     = "Custom color";
+      const nativeInput  = document.createElement("input");
+      nativeInput.type   = "color";
+      nativeInput.value  = currentHex || "#e8e8e8";
+      nativeInput.addEventListener("input", () => {
+        setColor(nativeInput.value);
+        onChange(nativeInput.value);
+      });
+      customSw.appendChild(nativeInput);
+      swatchRow.appendChild(customSw);
+
+      containerEl.appendChild(swatchRow);
+
+      // Hex input row
+      const hexRow = document.createElement("div");
+      hexRow.className = "color-hex-row";
+
+      const preview = document.createElement("div");
+      preview.className = "color-hex-preview";
+      preview.style.background = currentHex || "transparent";
+
+      const hexInput = document.createElement("input");
+      hexInput.type        = "text";
+      hexInput.className   = "color-hex-input";
+      hexInput.placeholder = "2px 2px 4px rgba(0,0,0,0.8)";
+      hexInput.value       = currentHex;
+      hexInput.maxLength   = 7;
+      hexInput.addEventListener("input", () => {
+        const val = hexInput.value.trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+          setColor(val);
+          onChange(val);
+        } else if (val === "") {
+          // Treat manual deletion as an explicit clear
+          setColor(null);
+          onChange(null);
+        }
+        // Partial input — do nothing; wait for a valid hex or empty
+      });
+
+      const clearBtn = document.createElement("button");
+      clearBtn.className   = "color-clear-btn";
+      clearBtn.textContent = "Clear";
+      clearBtn.title       = "Revert to default/global";
+      clearBtn.addEventListener("click", () => {
+        setColor(null);
+        onChange(null);
+      });
+
+      hexRow.appendChild(preview);
+      hexRow.appendChild(hexInput);
+      hexRow.appendChild(clearBtn);
+      containerEl.appendChild(hexRow);
+
+      // Helper: update all visual elements to reflect a new color
+      function setColor(hex) {
+        currentHex = hex || "";
+        hexInput.value = currentHex;
+        preview.style.background = currentHex || "transparent";
+        nativeInput.value = currentHex || "#000000";
+        // Update active swatch — clear all then re-apply to matched swatch
+        containerEl.querySelectorAll(".color-swatch").forEach(sw => {
+          sw.classList.remove("active");
+        });
+        if (hex) {
+          const matchedSwatch = Array.from(
+            containerEl.querySelectorAll(".color-swatch:not(.color-swatch-custom)")
+          ).find(sw => sw.title.toLowerCase().includes(hex.toLowerCase()));
+          if (matchedSwatch) matchedSwatch.classList.add("active");
+        }
+      }
+
+      return {
+        getValue: () => currentHex || null,
+        setValue: (newHex) => setColor(newHex),
+      };
+    }
+
+    // ==========================================================================
+    // SECTION 15: GLOBALS PANEL
+    // ==========================================================================
+
+    // Color picker instances for globals panel
+    let globTextColorPicker    = null;
+    let globBgColorPicker      = null;
+    let globBubbleBgColorPicker = null;
+
+    /**
+     * Initialises both globals color pickers. Called once at startup.
+     * Subsequent calls to syncGlobalsToUI() update their values.
+     */
+    function initGlobalsColorPicker() {
+      // Text color picker
+      const textContainer = document.getElementById("color-picker-glob-text");
+      globTextColorPicker = buildColorPicker(
+        textContainer,
+        null,
+        (hex) => {
+          setGlobal("text_color", hex || null);
+          updateStylePreview();
+        }
+      );
+
+      // Background color picker — writes a background-color value into
+      // background_css so the two fields stay in sync. If the user later
+      // types a gradient or other value into the advanced CSS field manually,
+      // the picker just won't reflect it (which is fine).
+      const bgContainer = document.getElementById("color-picker-glob-bg");
+      globBgColorPicker = buildColorPicker(
+        bgContainer,
+        null,
+        (hex) => {
+          if (hex) {
+            // No trailing semicolon — the advanced CSS field shows it without one
+            // so it's clear it's just the value, not a full rule
+            const cssVal = `background-color: ${hex}`;
+            setGlobal("background_css", cssVal);
+            document.getElementById("glob-bg-css").value = cssVal;
+          } else {
+            setGlobal("background_css", null);
+            document.getElementById("glob-bg-css").value = "";
+          }
+          updateStylePreview();
+        }
+      );
+
+      // Bubble background color picker
+      const bubbleBgContainer = document.getElementById("color-picker-glob-bubble-bg");
+      globBubbleBgColorPicker = buildColorPicker(
+        bubbleBgContainer,
+        "#000000",
+        (hex) => {
+          setGlobal("bubble_bg_color", hex || null);
+          updateStylePreview();
+        }
+      );
+    }
+
+    /**
+     * Writes global values from project.globals into all the UI fields.
+     * Called when switching to the Styles tab or loading a project.
+     */
+    function syncGlobalsToUI() {
+      if (!project) return;
+      const g = project.globals;
+
+      // Background image thumbnail
+      renderGlobBgThumb();
+
+      // Text fields
+      document.getElementById("glob-bg-css").value    = g.background_css || "";
+      document.getElementById("glob-font-size").value = g.font_size       || "";
+      document.getElementById("glob-bubble-css").value = g.bubble_css     || "";
+      document.getElementById("glob-music-url").value  = g.music_url      || "";
+
+      // Font: try to match to dropdown, otherwise set custom field
+      const fontVal = g.font_family || "";
+      const select  = document.getElementById("glob-font-select");
+      let matched   = false;
+      for (const opt of select.options) {
+        if (opt.value === fontVal) { select.value = fontVal; matched = true; break; }
+      }
+      if (!matched) { select.value = fontVal ? "custom" : ""; }
+      document.getElementById("glob-font-custom").value = fontVal;
+
+      // Color pickers
+      if (globTextColorPicker) globTextColorPicker.setValue(g.text_color || "");
+
+      // Try to extract a hex color from background_css for the bg picker
+      if (globBgColorPicker) {
+        const bgCss = g.background_css || "";
+        const hexMatch = bgCss.match(/#[0-9a-fA-F]{6}/);
+        globBgColorPicker.setValue(hexMatch ? hexMatch[0] : "");
+      }
+
+      // Bubble bg picker and opacity
+      if (globBubbleBgColorPicker) {
+        globBubbleBgColorPicker.setValue(g.bubble_bg_color || "#000000");
+      }
+      document.getElementById("glob-bubble-bg-opacity").value =
+        g.bubble_bg_opacity !== null && g.bubble_bg_opacity !== undefined
+          ? g.bubble_bg_opacity : "0.45";
+    }
+
+    /** Helper: write a value to project.globals and autosave */
+    function setGlobal(field, value) {
+      if (!project) return;
+      project.globals[field] = value;
+      autosave();
+    }
+
+    /** Renders the background image thumbnail in the globals panel */
+    function renderGlobBgThumb() {
+      const thumb = document.getElementById("glob-bg-thumb");
+      const src   = project && STSS.resolveImage(project, project.globals.background);
+      if (src) {
+        thumb.innerHTML = `<img src="${src}" style="width:36px;height:36px;object-fit:cover;border-radius:3px;">`;
+        thumb.classList.remove("empty");
+      } else {
+        thumb.textContent = "none";
+        thumb.classList.add("empty");
+      }
+    }
+
+    /** Encodes an image file to base64, registers it, and stores the hash in project.globals[field] */
+    function encodeImageToGlobal(field, file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const hash = STSS.registerImage(project, e.target.result);
+        setGlobal(field, hash);
+        renderGlobBgThumb();
+        updateStylePreview();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ==========================================================================
+    // SECTION 16: CHARACTER DASHBOARD
+    // ==========================================================================
+
+    // Holds color picker instances keyed by character name
+    const charColorPickers = {};
+
+    /**
+     * Builds or rebuilds the character cards from scratch.
+     * Scans all messages to find character names, merges with project.characters.
+     */
+    function renderCharCards() {
+      if (!project) return;
+
+      const container = document.getElementById("char-cards-container");
+      container.innerHTML = "";
+
+      // Get all NPC character names from messages
+      const names = STSS.getCharacterNames(project.messages);
+
+      if (names.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem;font-style:italic;">No characters found. Import a .jsonl first.</div>';
+        return;
+      }
+
+      // Ensure project.characters has an entry for every name
+      for (const name of names) {
+        if (!project.characters[name]) {
+          project.characters[name] = {
+            portrait:          null,
+            text_color:        null,
+            text_shadow:       null,
+            font_family:       null,
+            bubble_bg_color:   null,
+            bubble_bg_opacity: null,
+            bubble_css:        null,
+            theme_url:         null,
+          };
+        }
+      }
+
+      // Build a card for each character
+      for (const name of names) {
+        const card = buildCharCard(name);
+        container.appendChild(card);
+      }
+    }
+
+    /**
+     * Builds and returns a DOM element for one character's card.
+     */
+    function buildCharCard(name) {
+      const char = project.characters[name];
+
+      const card = document.createElement("div");
+      card.className   = "char-card";
+      card.dataset.char = name;
+
+      // Card header
+      const header = document.createElement("div");
+      header.className = "char-card-header";
+      header.innerHTML = `
+        <span class="char-card-name">${escapeHtml(name)}</span>
+        <span class="char-card-toggle">▶</span>
+      `;
+      header.addEventListener("click", () => card.classList.toggle("open"));
+      card.appendChild(header);
+
+      // Card body
+      const body = document.createElement("div");
+      body.className = "char-card-body";
+
+      // Portrait
+      body.appendChild(buildImgField(
+        "Portrait",
+        char.portrait,
+        (b64) => { setChar(name, "portrait", b64); updateStylePreview(); },
+        ()    => { setChar(name, "portrait", null); updateStylePreview(); }
+      ));
+
+      // Text color picker
+      const colorLabel = document.createElement("div");
+      colorLabel.className = "style-field";
+      colorLabel.innerHTML = '<label>Text Color</label>';
+      const colorContainer = document.createElement("div");
+      colorContainer.id = "color-picker-char-" + name.replace(/\s+/g, "_");
+      colorLabel.appendChild(colorContainer);
+      body.appendChild(colorLabel);
+
+      // Build and store color picker instance
+      charColorPickers[name] = buildColorPicker(
+        colorContainer,
+        char.text_color,
+        (hex) => { setChar(name, "text_color", hex || null); updateStylePreview(); }
+      );
+
+      // Text shadow
+      body.appendChild(buildTextField(
+        "Text Shadow", char.text_shadow || "",
+        "e.g. 0 0 8px #ff69b4",
+        (v) => { setChar(name, "text_shadow", v || null); updateStylePreview(); }
+      ));
+
+      // Font family
+      body.appendChild(buildFontField(
+        name, char.font_family,
+        (v) => { setChar(name, "font_family", v || null); updateStylePreview(); }
+      ));
+
+      // Bubble background color
+      const bubbleBgLabel = document.createElement("div");
+      bubbleBgLabel.className = "style-field";
+      bubbleBgLabel.innerHTML = "<label>Bubble Background Color</label>";
+      const bubbleBgContainer = document.createElement("div");
+      bubbleBgContainer.id = "color-picker-char-bubble-bg-" + name.replace(/\s+/g, "_");
+      bubbleBgLabel.appendChild(bubbleBgContainer);
+      body.appendChild(bubbleBgLabel);
+      buildColorPicker(
+        bubbleBgContainer,
+        char.bubble_bg_color || "",
+        (hex) => { setChar(name, "bubble_bg_color", hex || null); updateStylePreview(); }
+      );
+
+      // Bubble background opacity
+      body.appendChild(buildTextField(
+        "Bubble Opacity", char.bubble_bg_opacity || "",
+        "0 – 1, e.g. 0.45",
+        (v) => { setChar(name, "bubble_bg_opacity", v || null); updateStylePreview(); }
+      ));
+
+      // Bubble CSS (advanced)
+      body.appendChild(buildTextareaField(
+        "Bubble CSS (advanced)", char.bubble_css || "",
+        "Extra CSS for this character's bubbles…",
+        (v) => { setChar(name, "bubble_css", v || null); updateStylePreview(); }
+      ));
+
+      // Theme audio URL
+      body.appendChild(buildTextField(
+        "Theme Audio URL", char.theme_url || "",
+        "https://…",
+        (v) => { setChar(name, "theme_url", v || null); }
+      ));
+
+      // Reset button
+      const resetBtn = document.createElement("button");
+      resetBtn.className   = "char-reset-btn";
+      resetBtn.textContent = "Reset to globals";
+      resetBtn.addEventListener("click", () => {
+        showModal(
+          "Reset Character?",
+          `Clear all style overrides for "${name}"? They will inherit from globals.`,
+          () => {
+            project.characters[name] = {
+              portrait: null, text_color: null, text_shadow: null,
+              font_family: null, bubble_bg_color: null, bubble_bg_opacity: null,
+              bubble_css: null, theme_url: null,
+            };
+            // Rebuild just this card
+            const oldCard = document.querySelector(`.char-card[data-char="${CSS.escape(name)}"]`);
+            if (oldCard) oldCard.replaceWith(buildCharCard(name));
+            updateStylePreview();
+            autosave();
+          }
+        );
+      });
+      body.appendChild(resetBtn);
+
+      card.appendChild(body);
+      return card;
+    }
+
+    /** Helper: set a value on a character override and autosave */
+    function setChar(name, field, value) {
+      if (!project || !project.characters[name]) return;
+      project.characters[name][field] = value;
+      autosave();
+    }
+
+    /** Builds a simple text input style field */
+    function buildTextField(labelText, value, placeholder, onChange) {
+      const wrap = document.createElement("div");
+      wrap.className = "style-field";
+      const lbl = document.createElement("label");
+      lbl.textContent = labelText;
+      const input = document.createElement("input");
+      input.type        = "text";
+      input.value       = value;
+      input.placeholder = placeholder;
+      input.addEventListener("input", () => onChange(input.value));
+      wrap.appendChild(lbl);
+      wrap.appendChild(input);
+      return wrap;
+    }
+
+    /** Builds a textarea style field */
+    function buildTextareaField(labelText, value, placeholder, onChange) {
+      const wrap = document.createElement("div");
+      wrap.className = "style-field";
+      const lbl = document.createElement("label");
+      lbl.textContent = labelText;
+      const ta = document.createElement("textarea");
+      ta.rows        = 2;
+      ta.value       = value;
+      ta.placeholder = placeholder;
+      ta.addEventListener("input", () => onChange(ta.value));
+      wrap.appendChild(lbl);
+      wrap.appendChild(ta);
+      return wrap;
+    }
+
+    /** Builds a font family field (dropdown + custom input) */
+    function buildFontField(name, currentValue, onChange) {
+      const wrap = document.createElement("div");
+      wrap.className = "style-field";
+      const lbl = document.createElement("label");
+      lbl.textContent = "Font Family";
+
+      const select = document.createElement("select");
+      const fonts = [
+        ["— inherit —", ""],
+        ["Crimson Pro",       "'Crimson Pro', Georgia, serif"],
+        ["Lora",             "'Lora', Georgia, serif"],
+        ["EB Garamond",      "'EB Garamond', Georgia, serif"],
+        ["Libre Baskerville","'Libre Baskerville', Georgia, serif"],
+        ["Merriweather",     "'Merriweather', Georgia, serif"],
+        ["Raleway",          "'Raleway', sans-serif"],
+        ["Nunito",           "'Nunito', sans-serif"],
+        ["IBM Plex Mono",    "'IBM Plex Mono', monospace"],
+        ["Custom…",          "custom"],
+      ];
+      for (const [label, val] of fonts) {
+        const opt = document.createElement("option");
+        opt.value       = val;
+        opt.textContent = label;
+        select.appendChild(opt);
+      }
+
+      const customInput = document.createElement("input");
+      customInput.type        = "text";
+      customInput.placeholder = "CSS font stack";
+      customInput.style.marginTop = "0.3rem";
+
+      // Set initial state
+      let matched = false;
+      for (const opt of select.options) {
+        if (opt.value === currentValue) { select.value = currentValue; matched = true; break; }
+      }
+      if (!matched && currentValue) { select.value = "custom"; }
+      customInput.value = currentValue || "";
+
+      select.addEventListener("change", () => {
+        if (select.value === "custom") {
+          customInput.focus();
+        } else {
+          customInput.value = select.value;
+          onChange(select.value || null);
+        }
+      });
+      customInput.addEventListener("input", () => onChange(customInput.value || null));
+
+      wrap.appendChild(lbl);
+      wrap.appendChild(select);
+      wrap.appendChild(customInput);
+      return wrap;
+    }
+
+    /**
+     * Builds an image upload field with thumbnail, upload, and clear buttons.
+     * currentHashOrNull: a registry hash key (or null) — not raw base64.
+     * onUpload(hash): called with the registry hash after encoding.
+     * onClear():      called when the image is removed.
+     */
+    function buildImgField(labelText, currentHashOrNull, onUpload, onClear) {
+      const wrap = document.createElement("div");
+      wrap.className = "style-field";
+      const lbl = document.createElement("label");
+      lbl.textContent = labelText;
+
+      const row = document.createElement("div");
+      row.className = "img-upload-row";
+
+      // Thumbnail — resolve hash to actual data URL for display
+      const thumb = document.createElement("div");
+      const currentSrc = project ? STSS.resolveImage(project, currentHashOrNull) : null;
+      thumb.className = currentSrc ? "img-thumb" : "img-thumb empty";
+
+      function refreshThumb(src) {
+        if (src) {
+          thumb.innerHTML = `<img src="${src}" style="width:36px;height:36px;object-fit:cover;border-radius:3px;">`;
+          thumb.classList.remove("empty");
+        } else {
+          thumb.textContent = "none";
+          thumb.classList.add("empty");
+        }
+      }
+      refreshThumb(currentSrc);
+
+      // Hidden file input
+      const fileInput = document.createElement("input");
+      fileInput.type          = "file";
+      fileInput.accept        = "image/*";
+      fileInput.style.display = "none";
+      fileInput.addEventListener("change", e => {
+        if (!e.target.files.length) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          // Register the image (deduplicates automatically) and get hash
+          const hash = STSS.registerImage(project, ev.target.result);
+          refreshThumb(ev.target.result);
+          uploadBtn.textContent = "Replace";
+          onUpload(hash);
+        };
+        reader.readAsDataURL(e.target.files[0]);
+        e.target.value = "";
+      });
+
+      const uploadBtn = document.createElement("button");
+      uploadBtn.className   = "img-upload-btn";
+      uploadBtn.textContent = currentHashOrNull ? "Replace" : "Upload";
+      uploadBtn.addEventListener("click", () => fileInput.click());
+
+      const clearBtn = document.createElement("button");
+      clearBtn.className   = "img-clear-btn";
+      clearBtn.title       = "Clear image";
+      clearBtn.textContent = "✕";
+      clearBtn.addEventListener("click", () => {
+        refreshThumb(null);
+        uploadBtn.textContent = "Upload";
+        onClear();
+      });
+
+      row.appendChild(thumb);
+      row.appendChild(uploadBtn);
+      row.appendChild(clearBtn);
+      row.appendChild(fileInput);
+
+      wrap.appendChild(lbl);
+      wrap.appendChild(row);
+      return wrap;
+    }
+
+    // ==========================================================================
+    // SECTION 17: STYLE PREVIEW PANE
+    // ==========================================================================
+
+    // Index into the flat message key array for the preview
+    let previewMsgIndex = 0;
+
+    /**
+     * Determines which message to show first when entering the Styles tab.
+     * Uses the first selected message, or the first message overall.
+     */
+    function initStylePreview() {
+      if (!project) return;
+      const keys = Object.keys(project.messages);
+      if (keys.length === 0) return;
+
+      // Use first selected message if any
+      if (selectedMsgs.size > 0) {
+        const firstSelected = [...selectedMsgs][0];
+        const idx = keys.indexOf(firstSelected);
+        previewMsgIndex = idx >= 0 ? idx : 0;
+      } else {
+        previewMsgIndex = 0;
+      }
+      updateStylePreview();
+    }
+
+    /** Steps the preview forward (+1) or backward (-1) through messages */
+    function stepPreview(dir) {
+      if (!project) return;
+      const keys = Object.keys(project.messages);
+      if (keys.length === 0) return;
+      previewMsgIndex = (previewMsgIndex + dir + keys.length) % keys.length;
+      updateStylePreview();
+    }
+
+    /**
+     * Renders the current preview message with fully resolved styles.
+     * Called any time a style value changes or the preview index changes.
+     */
+    function updateStylePreview() {
+      if (!project) return;
+      const keys = Object.keys(project.messages);
+      if (keys.length === 0) {
+        document.getElementById("preview-nav-label").textContent = "No messages";
+        document.getElementById("preview-bubble").textContent    = "";
+        document.getElementById("preview-bubble-speaker").textContent = "";
+        return;
+      }
+
+      // Clamp index to valid range
+      previewMsgIndex = Math.max(0, Math.min(previewMsgIndex, keys.length - 1));
+      const key = keys[previewMsgIndex];
+      const msg = project.messages[key];
+
+      // Update nav label
+      const indexStr = msg.msg_index !== undefined ? `#${msg.msg_index}` : "";
+      document.getElementById("preview-nav-label").textContent =
+        `${indexStr} — ${msg.name} (${previewMsgIndex + 1} / ${keys.length})`;
+
+      // Resolve all styles through the inheritance chain
+      const style = STSS.resolveStyle(project, key);
+
+      // Apply background to stage
+      const stage = document.getElementById("preview-stage");
+      const bgSrc = STSS.resolveImage(project, style.background);
+      if (bgSrc) {
+        stage.style.backgroundImage = `url(${bgSrc})`;
+        stage.style.backgroundColor = "";
+      } else if (style.background_css) {
+        stage.style.backgroundImage = "";
+        // background_css may be a full "property: value;" rule or a bare value.
+        // Extract just the value part and strip any trailing semicolon.
+        let cssVal = style.background_css
+          .replace(/^background[^:]*:\s*/i, "")  // strip "background-color: " etc.
+          .replace(/;.*$/, "")                    // strip trailing semicolon + anything after
+          .trim();
+        // If it looks like a color or gradient, apply it correctly
+        if (cssVal.startsWith("linear-gradient") ||
+            cssVal.startsWith("radial-gradient") ||
+            cssVal.startsWith("url(")) {
+          stage.style.backgroundImage = cssVal;
+          stage.style.backgroundColor = "";
+        } else {
+          stage.style.backgroundColor = cssVal;
+        }
+      } else {
+        stage.style.backgroundImage = "";
+        stage.style.backgroundColor = "#1a1a2e";
+      }
+
+      // Apply bubble styles
+      const bubble        = document.getElementById("preview-bubble");
+      const speakerEl     = document.getElementById("preview-bubble-speaker");
+
+      bubble.style.fontFamily = (style.font_family || "").replace(/;$/, "").trim();
+      bubble.style.fontSize   = (style.font_size   || "").replace(/;$/, "").trim();
+      bubble.style.color      = style.text_color  || "#e0e0e0";
+      // Strip trailing semicolons — inline style values must not include them
+      bubble.style.textShadow = (style.text_shadow || "").replace(/;$/, "").trim();
+
+      // Apply bubble background color + opacity
+      const bubbleBgColor   = style.bubble_bg_color   || "#000000";
+      const bubbleBgOpacity = style.bubble_bg_opacity !== null && style.bubble_bg_opacity !== undefined
+        ? parseFloat(style.bubble_bg_opacity) : 0.45;
+      // Convert hex color + opacity to rgba
+      const r = parseInt(bubbleBgColor.slice(1,3), 16);
+      const g2 = parseInt(bubbleBgColor.slice(3,5), 16);
+      const b2 = parseInt(bubbleBgColor.slice(5,7), 16);
+      const alpha = isNaN(bubbleBgOpacity) ? 0.45 : Math.max(0, Math.min(1, bubbleBgOpacity));
+      bubble.style.background = `rgba(${r},${g2},${b2},${alpha})`;
+
+      // Apply any custom bubble_css as a scoped style element
+      applyBubbleCss(bubble, style.bubble_css);
+
+      // Portrait — resolve hash to data URL, then display
+      const portraitEl  = document.getElementById("preview-portrait");
+      const portraitSrc = STSS.resolveImage(project, style.portrait);
+      if (portraitSrc) {
+        portraitEl.src           = portraitSrc;
+        portraitEl.style.display = "block";
+      } else {
+        portraitEl.style.display = "none";
+        portraitEl.src           = "";
+      }
+
+      // Speaker label — use character's text color if set
+      speakerEl.textContent  = msg.name;
+      speakerEl.style.color  = style.text_color || "#e0e0e0";
+
+      // Message text
+      bubble.textContent = msg.mes || "(empty message)";
+
+      // If the Message accordion is visible, refresh it to match the new message
+      const msgAccord = document.getElementById("accord-messages");
+      if (msgAccord && document.getElementById("tab-styles").classList.contains("active")) {
+        renderMsgOverridePanel();
+      }
+    }
+
+    /**
+     * Applies a bubble_css string to an element safely.
+     * Injects it via a <style> tag scoped by a generated class name
+     * to avoid polluting global styles.
+     */
+    let bubbleCssStyleEl = null;
+    function applyBubbleCss(el, cssString) {
+      // Remove any previous scoped style
+      el.classList.remove("bubble-custom-css");
+      if (bubbleCssStyleEl) { bubbleCssStyleEl.remove(); bubbleCssStyleEl = null; }
+
+      if (!cssString) return;
+
+      el.classList.add("bubble-custom-css");
+      bubbleCssStyleEl = document.createElement("style");
+      bubbleCssStyleEl.textContent = `.bubble-custom-css { ${cssString} }`;
+      document.head.appendChild(bubbleCssStyleEl);
+    }
+
+
+    // ==========================================================================
+    // SECTION 18: MESSAGE OVERRIDE PANEL
+    // Shows all per-message override fields for the currently previewed message.
+    // Updates whenever the preview index changes.
+    // ==========================================================================
+
+    /**
+     * Rebuilds the message override fields for the currently previewed message.
+     * Called from updateStylePreview() and when the tab is switched to Styles.
+     */
+    function renderMsgOverridePanel() {
+      if (!project) return;
+      const keys = Object.keys(project.messages);
+      if (keys.length === 0) return;
+
+      const key     = keys[Math.max(0, Math.min(previewMsgIndex, keys.length - 1))];
+      const msg     = project.messages[key];
+      const fields  = document.getElementById("msg-override-fields");
+      const hdr     = document.getElementById("msg-override-header");
+
+      // Update identity header
+      const indexStr = msg.msg_index !== undefined ? `#${msg.msg_index}` : "";
+      hdr.innerHTML  = `<span class="oh-index">${indexStr}</span> `
+        + `<span class="oh-name">${escapeHtml(msg.name)}</span>`;
+
+      fields.innerHTML = "";
+
+      // Helper: wrap a field and mark it if it has an active override
+      function wrapField(el, fieldName) {
+        if (msg[fieldName] !== null && msg[fieldName] !== undefined) {
+          el.classList.add("has-override");
+        }
+        return el;
+      }
+
+      // ---- Portrait ----
+      fields.appendChild(wrapField(buildImgField(
+        "Portrait",
+        msg.portrait,
+        (hash) => { setMsgOverride(key, "portrait", hash); },
+        ()     => { setMsgOverride(key, "portrait", null); }
+      ), "portrait"));
+
+      // ---- Background image ----
+      fields.appendChild(wrapField(buildImgField(
+        "Background Image",
+        msg.background,
+        (hash) => { setMsgOverride(key, "background", hash); },
+        ()     => { setMsgOverride(key, "background", null); }
+      ), "background"));
+
+      // ---- Background color picker + CSS ----
+      const bgColorWrap = document.createElement("div");
+      bgColorWrap.className = "style-field";
+      if (msg.background_css) bgColorWrap.classList.add("has-override");
+      const bgColorLabel = document.createElement("label");
+      bgColorLabel.textContent = "Background Color";
+      bgColorWrap.appendChild(bgColorLabel);
+      const bgColorContainer = document.createElement("div");
+      bgColorWrap.appendChild(bgColorContainer);
+      buildColorPicker(
+        bgColorContainer,
+        extractHex(msg.background_css),
+        (hex) => {
+          const val = hex ? `background-color: ${hex}` : null;
+          setMsgOverride(key, "background_css", val);
+          bgColorWrap.classList.toggle("has-override", !!val);
+        }
+      );
+      fields.appendChild(bgColorWrap);
+
+      const bgCssWrap = buildTextField(
+        "Background CSS (advanced)", msg.background_css || "",
+        "e.g. linear-gradient(#1a1a2e, #2a1a3e)",
+        (v) => { setMsgOverride(key, "background_css", v || null);
+                 bgCssWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.background_css) bgCssWrap.classList.add("has-override");
+      fields.appendChild(bgCssWrap);
+
+      // ---- Font family ----
+      const fontWrap = buildFontField(key + "_msg", msg.font_family,
+        (v) => { setMsgOverride(key, "font_family", v || null);
+                 fontWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.font_family) fontWrap.classList.add("has-override");
+      fields.appendChild(fontWrap);
+
+      // ---- Font size ----
+      const fsWrap = buildTextField(
+        "Font Size", msg.font_size || "", "e.g. 1.1rem",
+        (v) => { setMsgOverride(key, "font_size", v || null);
+                 fsWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.font_size) fsWrap.classList.add("has-override");
+      fields.appendChild(fsWrap);
+
+      // ---- Text color ----
+      const tcWrap = document.createElement("div");
+      tcWrap.className = "style-field";
+      if (msg.text_color) tcWrap.classList.add("has-override");
+      const tcLabel = document.createElement("label");
+      tcLabel.textContent = "Text Color";
+      tcWrap.appendChild(tcLabel);
+      const tcContainer = document.createElement("div");
+      tcWrap.appendChild(tcContainer);
+      buildColorPicker(
+        tcContainer, msg.text_color || "",
+        (hex) => { setMsgOverride(key, "text_color", hex || null);
+                   tcWrap.classList.toggle("has-override", !!hex); }
+      );
+      fields.appendChild(tcWrap);
+
+      // ---- Text shadow ----
+      const tsWrap = buildTextField(
+        "Text Shadow", msg.text_shadow || "",
+        "e.g. 2px 2px 4px rgba(0,0,0,0.8)",
+        (v) => { setMsgOverride(key, "text_shadow", v || null);
+                 tsWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.text_shadow) tsWrap.classList.add("has-override");
+      fields.appendChild(tsWrap);
+
+      // ---- Bubble background color ----
+      const bbcWrap = document.createElement("div");
+      bbcWrap.className = "style-field";
+      if (msg.bubble_bg_color) bbcWrap.classList.add("has-override");
+      const bbcLabel = document.createElement("label");
+      bbcLabel.textContent = "Bubble Background Color";
+      bbcWrap.appendChild(bbcLabel);
+      const bbcContainer = document.createElement("div");
+      bbcWrap.appendChild(bbcContainer);
+      buildColorPicker(
+        bbcContainer, msg.bubble_bg_color || "",
+        (hex) => { setMsgOverride(key, "bubble_bg_color", hex || null);
+                   bbcWrap.classList.toggle("has-override", !!hex); }
+      );
+      fields.appendChild(bbcWrap);
+
+      // ---- Bubble opacity ----
+      const boWrap = buildTextField(
+        "Bubble Opacity", msg.bubble_bg_opacity || "", "0 – 1, e.g. 0.6",
+        (v) => { setMsgOverride(key, "bubble_bg_opacity", v || null);
+                 boWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.bubble_bg_opacity) boWrap.classList.add("has-override");
+      fields.appendChild(boWrap);
+
+      // ---- Bubble CSS ----
+      const bcWrap = buildTextareaField(
+        "Bubble CSS (advanced)", msg.bubble_css || "",
+        "Extra CSS for this bubble…",
+        (v) => { setMsgOverride(key, "bubble_css", v || null);
+                 bcWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.bubble_css) bcWrap.classList.add("has-override");
+      fields.appendChild(bcWrap);
+
+      // ---- Music URL ----
+      const muWrap = buildTextField(
+        "Music URL (replaces track)", msg.music_url || "", "https://…",
+        (v) => { setMsgOverride(key, "music_url", v || null);
+                 muWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.music_url) muWrap.classList.add("has-override");
+      fields.appendChild(muWrap);
+
+      // ---- Sting URL ----
+      const suWrap = buildTextField(
+        "Sting URL (one-shot audio)", msg.sting_url || "", "https://…",
+        (v) => { setMsgOverride(key, "sting_url", v || null);
+                 suWrap.classList.toggle("has-override", !!v); }
+      );
+      if (msg.sting_url) suWrap.classList.add("has-override");
+      fields.appendChild(suWrap);
+
+      // Update preset dropdown
+      renderPresetSelect();
+    }
+
+    /**
+     * Sets a single override field on a message, updates the preview, autosaves.
+     */
+    function setMsgOverride(key, field, value) {
+      if (!project || !project.messages[key]) return;
+      project.messages[key][field] = value;
+      updateStylePreview();
+      autosave();
+    }
+
+    /**
+     * Clears all override fields on the current message back to null.
+     */
+    function clearMsgOverrides() {
+      if (!project) return;
+      const keys = Object.keys(project.messages);
+      if (!keys.length) return;
+      const key = keys[Math.max(0, Math.min(previewMsgIndex, keys.length - 1))];
+      const msg = project.messages[key];
+      for (const field of STSS.PRESET_FIELDS) {
+        msg[field] = null;
+      }
+      renderMsgOverridePanel();
+      updateStylePreview();
+      autosave();
+      setSaveStatus("Overrides cleared. Autosaved.");
+    }
+
+    /**
+     * Extracts the first #rrggbb hex color from a CSS string, or returns "".
+     * Used to pre-populate color pickers from a background_css value.
+     */
+    function extractHex(cssStr) {
+      if (!cssStr) return "";
+      const m = cssStr.match(/#[0-9a-fA-F]{6}/);
+      return m ? m[0] : "";
+    }
+
+    // ==========================================================================
+    // SECTION 19: STYLE PRESETS
+    // ==========================================================================
+
+    /**
+     * Rebuilds the preset dropdown from project.style_presets.
+     */
+    function renderPresetSelect() {
+      if (!project) return;
+      const sel = document.getElementById("preset-select");
+      const current = sel.value;
+      sel.innerHTML = '<option value="">— presets —</option>';
+      for (const p of (project.style_presets || [])) {
+        const opt = document.createElement("option");
+        opt.value       = p.id;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+      }
+      // Restore selection if it still exists
+      if (current) sel.value = current;
+    }
+
+    /**
+     * Saves the current message's overrides as a named preset.
+     * Prompts for a name inline via a small text input in the preset bar.
+     */
+    function savePreset() {
+      if (!project) return;
+      const keys = Object.keys(project.messages);
+      if (!keys.length) return;
+      const key = keys[Math.max(0, Math.min(previewMsgIndex, keys.length - 1))];
+
+      const name = window.prompt("Preset name:");
+      if (!name || !name.trim()) return;
+
+      STSS.createPreset(project, key, name.trim());
+      renderPresetSelect();
+      autosave();
+      setSaveStatus(`Preset "${name.trim()}" saved.`);
+    }
+
+    /**
+     * Applies the currently selected preset to the current message.
+     */
+    function loadPreset() {
+      if (!project) return;
+      const keys     = Object.keys(project.messages);
+      if (!keys.length) return;
+      const key      = keys[Math.max(0, Math.min(previewMsgIndex, keys.length - 1))];
+      const presetId = document.getElementById("preset-select").value;
+      if (!presetId) return;
+
+      STSS.applyPreset(project, key, presetId);
+      renderMsgOverridePanel();
+      updateStylePreview();
+      autosave();
+      setSaveStatus("Preset applied. Autosaved.");
+    }
+
+    /**
+     * Deletes the currently selected preset after confirmation.
+     */
+    function deletePreset() {
+      if (!project) return;
+      const sel = document.getElementById("preset-select");
+      if (!sel.value) return;
+      const preset = (project.style_presets || []).find(p => p.id === sel.value);
+      if (!preset) return;
+
+      showModal(
+        "Delete Preset?",
+        `Delete preset "${preset.name}"? This cannot be undone.`,
+        () => {
+          STSS.deletePreset(project, sel.value);
+          renderPresetSelect();
+          autosave();
+          setSaveStatus("Preset deleted.");
+        }
+      );
+    }
+
+    // ==========================================================================
+    // BUTTON EVENT WIRING
+    // All button events are wired here via addEventListener rather than inline
+    // onclick= attributes, which fail under file:// security restrictions in
+    // Chrome. Every function is defined at module scope above this point.
+    // ==========================================================================
+    function wireButtons() {
+      // Top bar
+      document.getElementById("btn-new-project").addEventListener("click", newProject);
+      document.getElementById("btn-load-project").addEventListener("click", loadProjectFile);
+
+      // Sidebar tree controls
+      document.getElementById("btn-add-root").addEventListener("click", function() { addNode(null); });
+      document.getElementById("add-child-btn").addEventListener("click", addChildNode);
+      document.getElementById("del-node-btn").addEventListener("click", deleteSelectedNode);
+
+      // Export
+      document.getElementById("btn-export").addEventListener("click", exportPayload);
+
+      // Panel header
+      document.getElementById("unassign-btn").addEventListener("click", unassignSelected);
+      document.getElementById("assign-btn").addEventListener("click", assignSelected);
+
+      // Filter bar
+      document.getElementById("toggle-unassigned").addEventListener("click", toggleUnassignedFilter);
+      document.getElementById("toggle-select-all").addEventListener("click", toggleSelectAll);
+
+      // Preview overlay
+      document.getElementById("preview-close").addEventListener("click", closePreview);
+      document.getElementById("preview-discard-btn").addEventListener("click", discardPreviewEdit);
+      document.getElementById("preview-save-btn").addEventListener("click", savePreviewEdit);
+
+      // Modal
+      document.getElementById("btn-modal-cancel").addEventListener("click", closeModal);
+
+      // Meta inputs (oninput removed from HTML, wired here)
+      // Filter input
+      document.getElementById("filter-input-box").addEventListener("input", renderMessages);
+
+      document.getElementById("meta-title").addEventListener("input", updateMeta);
+      document.getElementById("meta-author").addEventListener("input", updateMeta);
+      document.getElementById("meta-desc").addEventListener("input", updateMeta);
+
+      // Sidebar tabs
+      document.querySelectorAll(".sidebar-tab").forEach(tab => {
+        tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+      });
+
+      // Accordion headers
+      document.querySelectorAll(".accordion-header").forEach(hdr => {
+        hdr.addEventListener("click", () => {
+          hdr.closest(".accordion").classList.toggle("open");
+        });
+      });
+
+      // Globals: background image upload/clear
+      document.getElementById("btn-glob-bg-upload").addEventListener("click", () => {
+        document.getElementById("glob-bg-file").click();
+      });
+      document.getElementById("glob-bg-file").addEventListener("change", e => {
+        if (e.target.files.length) encodeImageToGlobal("background", e.target.files[0]);
+        e.target.value = "";
+      });
+      document.getElementById("btn-glob-bg-clear").addEventListener("click", () => {
+        setGlobal("background", null);
+        renderGlobBgThumb();
+        updateStylePreview();
+      });
+
+      // Globals: text fields
+      document.getElementById("glob-bg-css").addEventListener("input", function() {
+        setGlobal("background_css", this.value || null);
+        // If the typed value contains a hex color, sync it back to the picker
+        if (globBgColorPicker) {
+          const hexMatch = (this.value || "").match(/#[0-9a-fA-F]{6}/);
+          globBgColorPicker.setValue(hexMatch ? hexMatch[0] : "");
+        }
+        updateStylePreview();
+      });
+      document.getElementById("glob-font-select").addEventListener("change", function() {
+        if (this.value === "custom") {
+          document.getElementById("glob-font-custom").focus();
+        } else if (this.value) {
+          document.getElementById("glob-font-custom").value = this.value;
+          setGlobal("font_family", this.value);
+          updateStylePreview();
+        }
+      });
+      document.getElementById("glob-font-custom").addEventListener("input", function() {
+        setGlobal("font_family", this.value || null);
+        updateStylePreview();
+      });
+      document.getElementById("glob-font-size").addEventListener("input", function() {
+        setGlobal("font_size", this.value || null);
+        updateStylePreview();
+      });
+      document.getElementById("glob-bubble-bg-opacity").addEventListener("input", function() {
+        setGlobal("bubble_bg_opacity", this.value || null);
+        updateStylePreview();
+      });
+      document.getElementById("glob-bubble-css").addEventListener("input", function() {
+        setGlobal("bubble_css", this.value || null);
+        updateStylePreview();
+      });
+      document.getElementById("glob-music-url").addEventListener("input", function() {
+        setGlobal("music_url", this.value || null);
+      });
+
+      // Style preview navigation
+      document.getElementById("btn-prev-msg").addEventListener("click", () => stepPreview(-1));
+      document.getElementById("btn-next-msg").addEventListener("click", () => stepPreview(1));
+
+      // Message override preset buttons
+      document.getElementById("btn-preset-save").addEventListener("click", savePreset);
+      document.getElementById("btn-preset-load").addEventListener("click", loadPreset);
+      document.getElementById("btn-preset-delete").addEventListener("click", deletePreset);
+      document.getElementById("btn-msg-clear-overrides").addEventListener("click", () => {
+        showModal(
+          "Clear Overrides?",
+          "Remove all style overrides from this message? It will inherit from character and globals.",
+          clearMsgOverrides
+        );
+      });
+      document.getElementById("modal-confirm-btn").addEventListener("click", function() {
+        // Capture the callback BEFORE closeModal() nulls it
+        const cb = modalCallback;
+        closeModal();
+        if (cb) cb();
+      });
+    }
+
+    // ==========================================================================
+    // INIT
+    // ==========================================================================
+    wireButtons();
+    initGlobalsColorPicker();
+    tryRestoreAutosave();
+  </script>
+
+</body>
+</html>
