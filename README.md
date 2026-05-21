@@ -10,7 +10,7 @@ https://8u6man.github.io/SillyReader/stss-reader
 # This app allows you to:
 - Import .jsonl SillyTavern exports
 - Assign Global > Character > Message styles (including portraits and backgrounds)
-- Create and index of your own story payloads and add them to the masterlist (You'll appear in the author search.)
+- Create an index of your own story payloads or upload a single story and add them to the masterlist (You'll appear in the author search.)
 - Read other people's chats and share your own!
 
 ## What is this?
@@ -74,7 +74,7 @@ No. The Reader just displays pre-exported story files. You only need SillyTavern
 Yes, if you download the payload `.json` and drop it onto the Reader directly. The Reader itself also works offline if you download `stss-reader.html` and `stss-core.js` and open them locally.
 
 **My payload file is huge — is that normal?**  
-Payload files embed images (portraits, backgrounds) as base64 data, which can make them large. This is normal. Catbox handles files up to 200MB; GitHub has a 100MB file limit per file (50MB recommended).
+Payload files embed images (portraits, backgrounds) as base64 data, which can make them large. This is normal. Catbox handles files up to 200MB; GitHub has a 100MB file limit per file (50MB recommended). To reduce filesize, make sure images are compressed before uploading them in the editor. .jpg and .webp are good choices.
 
 **The Reader says "No messages in this story's structure."**  
 This means the story was exported before any messages were assigned to the structure tree in the Editor. The author needs to re-export with messages assigned to at least one chapter or scene node.
