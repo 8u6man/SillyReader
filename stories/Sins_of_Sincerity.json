@@ -5,7 +5,7 @@
     "author": "Wren",
     "description": "",
     "created": "2026-05-20T19:57:42.513Z",
-    "modified": "2026-05-21T00:13:03.082Z"
+    "modified": "2026-05-21T00:17:12.224Z"
   },
   "globals": {
     "background": "f29b9880",
@@ -22,10 +22,10 @@
   "characters": {
     "Cecilia": {
       "portrait": "49940e58",
-      "text_color": "#f0a8b8",
+      "text_color": "#f4b3c1",
       "text_shadow": null,
       "font_family": null,
-      "bubble_bg_color": "#80b8c0",
+      "bubble_bg_color": "#062c32",
       "bubble_bg_opacity": null,
       "bubble_css": null,
       "theme_url": null
