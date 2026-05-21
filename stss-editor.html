@@ -24,8 +24,8 @@
       --border:      #2e2e38;
       --border2:     #3a3a48;
       --text:        #d4d4e0;
-      --text-dim:    #9c9cb7;
-      --text-muted:  #4d4d69;
+      --text-dim:    #5a5a70;
+      --text-muted:  #3a3a50;
       --accent:      #e8a33a;   /* warm amber — the one pop of colour */
       --accent-dim:  #7a4d0f;
       --green:       #5dba7a;
@@ -123,7 +123,8 @@
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow: hidden;    /* clips horizontally */
+      min-height: 0;       /* critical: allows flex children to shrink below content size */
     }
 
     .sidebar-section {
@@ -369,6 +370,9 @@
       font-family: var(--font-mono);
       color: var(--text-muted);
       margin-top: 0.4rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* ================================================================
@@ -521,7 +525,7 @@
 
     /* Assigned state: dimmed */
     .msg-row.assigned {
-      opacity: 0.6;
+      opacity: 0.38;
     }
     /* If assigned AND selected, let selection show through a little */
     .msg-row.assigned.selected {
@@ -882,7 +886,7 @@
     }
 
     /* Tab content panes — only one visible at a time */
-    .tab-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .tab-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
     .tab-pane.active { display: flex; }
 
     /* ================================================================
@@ -1396,7 +1400,7 @@
         </div>
 
         <!-- Structure tree -->
-        <div class="sidebar-section" style="flex:1; display:flex; flex-direction:column; overflow:hidden; border-bottom:none;">
+        <div class="sidebar-section" style="flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; border-bottom:none;">
           <div class="sidebar-section-header">
             Structure
             <div class="hdr-actions">
@@ -2531,8 +2535,7 @@
           // Warn if approaching quota — don't block the save, just alert the user
           if (serialized.length > AUTOSAVE_WARN_BYTES) {
             setSaveStatus(
-              "⚠ Project is large (" + (serialized.length / 1024 / 1024).toFixed(1)
-              + "MB) — export regularly in case autosave fails.",
+              "⚠ Large project (" + (serialized.length / 1024 / 1024).toFixed(1) + "MB) — export often.",
               "warn"
             );
           }
@@ -2545,7 +2548,7 @@
           }
         } catch(e) {
           if (e.name === "QuotaExceededError") {
-            setSaveStatus("⚠ Autosave failed — project too large. Export now to avoid losing work.", "warn");
+            setSaveStatus("⚠ Autosave failed — too large for browser storage. Export to save.", "warn");
           } else {
             setSaveStatus("Autosave failed: " + e.message, "warn");
           }
@@ -3219,7 +3222,7 @@
       bubbleBgLabel.className = "style-field";
       bubbleBgLabel.innerHTML = "<label>Bubble Background Color</label>";
       const bubbleBgContainer = document.createElement("div");
-      bubbleBgContainer.id = "color-picker-char-bubble-bg-" + name.replace(/\s+/g, "_");
+      bubbleBgContainer.id = "color-picker-char-bubble-bg-" + name.replace(/[^a-zA-Z0-9]/g, "_");
       bubbleBgLabel.appendChild(bubbleBgContainer);
       body.appendChild(bubbleBgLabel);
       buildColorPicker(
