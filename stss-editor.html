@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STSS Editor</title>
+  <title>Silly Editor</title>
   <script src="stss-core.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Nunito:wght@400;600&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
@@ -20,12 +20,12 @@
       --bg:          #111113;
       --bg2:         #18181c;
       --bg3:         #202026;
-      --bg4:         #28282f;
+      --bg4:         #285f19;
       --border:      #2e2e38;
       --border2:     #3a3a48;
-      --text:        #d4d4e0;
-      --text-dim:    #5a5a70;
-      --text-muted:  #3a3a50;
+      --text:        #e0e0f0;
+      --text-dim:    #adbbcd;
+      --text-muted:  #57576d;
       --accent:      #e8a33a;   /* warm amber — the one pop of colour */
       --accent-dim:  #7a4d0f;
       --green:       #5dba7a;
@@ -496,7 +496,7 @@
       padding: 2rem;
       text-align: center;
       color: var(--text-muted);
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       font-style: italic;
     }
 
@@ -522,7 +522,7 @@
 
     /* Assigned state: dimmed */
     .msg-row.assigned {
-      opacity: 0.38;
+      opacity: 0.45;
     }
     /* If assigned AND selected, let selection show through a little */
     .msg-row.assigned.selected {
@@ -588,7 +588,7 @@
     /* The node-name badge shown on assigned messages */
     .msg-node-badge {
       font-family: var(--font-mono);
-      font-size: 0.6rem;
+      font-size: 0.8rem;
       background: var(--bg4);
       border: 1px solid var(--border2);
       border-radius: 2px;
@@ -598,7 +598,7 @@
     }
 
     .msg-row-text {
-      font-size: 0.8rem;
+      font-size: 0.9rem;
       color: var(--text-dim);
       white-space: nowrap;
       overflow: hidden;
@@ -1351,7 +1351,7 @@
 
   <!-- TOP BAR -->
   <div id="top-bar">
-    <span class="app-name">STSS Editor</span>
+    <span class="app-name">Silly Editor</span>
     <span class="project-title-display">
       Project: <span id="title-display">—</span>
     </span>
@@ -1431,7 +1431,7 @@
         <div id="styles-tab-pane">
 
           <!-- Globals accordion -->
-          <div class="accordion open" id="accord-globals">
+          <div class="accordion" id="accord-globals">
             <div class="accordion-header">
               Globals
               <span class="accordion-toggle">▶</span>
@@ -1513,7 +1513,7 @@
           </div><!-- /accord-globals -->
 
           <!-- Character dashboard accordion -->
-          <div class="accordion open" id="accord-chars">
+          <div class="accordion" id="accord-chars">
             <div class="accordion-header">
               Characters
               <span class="accordion-toggle">▶</span>
@@ -1528,7 +1528,7 @@
           </div><!-- /accord-chars -->
 
           <!-- Messages accordion -->
-          <div class="accordion open" id="accord-messages">
+          <div class="accordion" id="accord-messages">
             <div class="accordion-header">
               Messages
               <span class="accordion-toggle">▶</span>
@@ -2194,7 +2194,7 @@
                data-id="${node.id}"
                style="padding-left:${indent}px">
             ${toggleHtml}
-            <span class="tree-type-badge">${escapeHtml(node.type)}</span>
+            <span class="tree-type-badge">➕</span>
             <span class="tree-node-title" data-id="${node.id}"
                   contenteditable="false">${escapeHtml(node.title)}</span>
             ${isLeaf && msgCount > 0
