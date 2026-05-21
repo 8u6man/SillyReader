@@ -2346,14 +2346,18 @@
   }
 
   /**
-   * Lazily fetches one author's index and caches the result.
-   * Returns a Promise that resolves when the fetch is complete.
+   * Lazily fetches one masterlist entry and caches the result.
+   * Auto-detects whether the URL points to:
+   *   - An author index  ({ "stories": [...] })
+   *   - A direct payload ({ "schema_version": 1, ... })
+   * Both are normalised into the same cache shape: { status, stories, error }
+   * A direct payload becomes a single-story list using the payload's own meta.
    */
   function fetchAuthorIndex(entry) {
     const name = entry.name;
 
     if (authorIndexCache.has(name)) {
-      return Promise.resolve(); // already fetched or in-flight via cache
+      return Promise.resolve();
     }
 
     // Mark as loading immediately so concurrent calls don't double-fetch
@@ -2365,16 +2369,28 @@
         return r.json();
       })
       .then(data => {
-        if (!data.stories || !Array.isArray(data.stories)) {
-          throw new Error("Missing 'stories' array");
+        let stories;
+
+        if (Array.isArray(data.stories)) {
+          // Author index format — use as-is
+          stories = data.stories;
+        } else if (data.schema_version !== undefined && data.meta) {
+          // Direct payload — wrap it as a single story entry
+          stories = [{
+            title:       data.meta.title       || "Untitled",
+            description: data.meta.description || "",
+            url:         entry.url,
+          }];
+        } else {
+          throw new Error("Unrecognised format — expected a 'stories' array or a payload with 'schema_version'");
         }
-        authorIndexCache.set(name, { status: "ok", stories: data.stories, error: "" });
+
+        authorIndexCache.set(name, { status: "ok", stories, error: "" });
       })
       .catch(err => {
         authorIndexCache.set(name, { status: "error", stories: [], error: err.message });
       })
       .then(() => {
-        // Re-render now that this author's data is available
         renderSearchResults(document.getElementById("search-input").value.trim());
       });
   }
@@ -2447,7 +2463,7 @@
       const meta = document.createElement("span");
       if (!cache) {
         meta.className   = "sr-author-loading";
-        meta.textContent = "click to load";
+        meta.textContent = "click to expand";
       } else if (cache.status === "loading") {
         meta.className   = "sr-author-loading";
         meta.textContent = "loading…";
