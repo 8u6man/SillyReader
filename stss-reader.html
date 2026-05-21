@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STSS Reader</title>
+  <title>Silly Reader</title>
   <script src="stss-core.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Nunito:wght@400;600&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
@@ -1112,14 +1112,14 @@
 
   <!-- Loading screen -->
   <div id="loading-screen">
-    <div class="loading-app-name">STSS Reader</div>
+    <div class="loading-app-name">Silly Reader</div>
     <div class="loading-spinner"></div>
     <div class="loading-status" id="loading-status">Initialising…</div>
   </div>
 
   <!-- Drop zone (shown when no story loaded) -->
   <div id="drop-zone">
-    <div class="dz-title">STSS Reader</div>
+    <div class="dz-title">Silly Reader</div>
     <div class="dz-sub">Load a story payload to begin reading</div>
     <div class="dz-box" id="dz-drop-box">
       <div class="dz-box-text">Drop payload JSON here<br>or click to browse</div>
@@ -1140,7 +1140,7 @@
     <!-- Sidebar -->
     <div id="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-app-name">STSS Reader</div>
+        <div class="sidebar-app-name">Silly Reader</div>
         <div class="sidebar-story-title" id="sb-title">—</div>
         <div class="sidebar-story-author" id="sb-author"></div>
         <div class="sidebar-story-desc" id="sb-desc"></div>
@@ -1160,7 +1160,7 @@
         <!-- Actions -->
         <div class="sb-section">
           <button class="sb-btn" id="btn-download">
-            <span class="sb-btn-icon">↓</span> Download Payload
+            <span class="sb-btn-icon">↓</span> Download Story
           </button>
           <button class="sb-btn" id="btn-load-new">
             <span class="sb-btn-icon">⊕</span> Load New Story
@@ -1428,7 +1428,7 @@
     document.getElementById("sb-desc").textContent   = meta.description || "";
 
     // Update browser tab title
-    document.title = (meta.title || "Story") + " — STSS Reader";
+    document.title = (meta.title || "Story") + " — Silly Reader";
 
     buildToC();
   }
@@ -1450,7 +1450,7 @@
 
         const typeSpan = document.createElement("span");
         typeSpan.className   = "toc-node-type";
-        typeSpan.textContent = node.type;
+        typeSpan.textContent = "➕";
 
         btn.appendChild(typeSpan);
         btn.appendChild(document.createTextNode(node.title));
