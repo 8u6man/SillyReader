@@ -239,14 +239,11 @@
 
     /* ---- Structure tree ---- */
     #tree-container {
-      flex: 1;
-      overflow-y: auto;
+      min-height: 8rem;   /* always shows even when empty */
       padding: 0.4rem 0;
     }
 
-    #tree-container::-webkit-scrollbar { width: 4px; }
-    #tree-container::-webkit-scrollbar-track { background: transparent; }
-    #tree-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
 
     .tree-empty {
       padding: 0.75rem;
@@ -886,8 +883,16 @@
     }
 
     /* Tab content panes — only one visible at a time */
-    .tab-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
+    .tab-pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
     .tab-pane.active { display: flex; }
+    /* Structure tab scrolls as a whole — sections can scroll off the top */
+    #tab-structure {
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    #tab-structure::-webkit-scrollbar { width: 4px; }
+    #tab-structure::-webkit-scrollbar-track { background: transparent; }
+    #tab-structure::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
     /* ================================================================
        STYLES PANEL (globals + character dashboard)
@@ -1400,7 +1405,7 @@
         </div>
 
         <!-- Structure tree -->
-        <div class="sidebar-section" style="flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; border-bottom:none;">
+        <div class="sidebar-section" style="display:flex; flex-direction:column; border-bottom:none;">
           <div class="sidebar-section-header">
             Structure
             <div class="hdr-actions">
