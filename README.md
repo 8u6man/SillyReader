@@ -8,7 +8,7 @@ https://8u6man.github.io/SillyReader/stss-editor
 https://8u6man.github.io/SillyReader/stss-reader
 
 # This app allows you to:
-- Import .json SillyTavern exports
+- Import .jsonl SillyTavern exports
 - Assign Global > Character > Message styles (including portraits and backgrounds)
 - Create and index of your own story payloads and add them to the masterlist (You'll appear in the author search.)
 - Read other people's chats and share your own!
@@ -17,7 +17,7 @@ https://8u6man.github.io/SillyReader/stss-reader
 
 Two complementary tools:
 
-- **The Editor** takes a SillyTavern `.json` chat export and lets you organise it into chapters and scenes, assign styles to characters and individual messages, and export a self-contained "payload" JSON file.
+- **The Editor** takes a SillyTavern `.jsonl` chat export and lets you organise it into chapters and scenes, assign styles to characters and individual messages, and export a self-contained "payload" JSON file.
 - **The Reader** loads that payload and presents it as a reading experience, with a fullscreen prose mode and a Visual Novel mode with character portraits.
 
 Both run entirely in your browser. No account, no server, no install.
@@ -39,7 +39,7 @@ Both run entirely in your browser. No account, no server, no install.
 ### Step 1 — Export a payload from the Editor
 
 1. Open the [Editor](https://8u6man.github.io/SillyReader/stss-editor)
-2. Import your SillyTavern `.json` export (or drag and drop onto the Import zone)
+2. Import your SillyTavern `.jsonl` export (or drag and drop onto the Import zone)
 3. Organise your messages into chapters/scenes using the Structure panel
 4. Optionally add character portraits, backgrounds, fonts, and music (untested) in the Styles panel
 5. Click **Export Payload JSON** — this gives you a `.json` file
