@@ -1358,6 +1358,8 @@
     <button class="top-btn" id="btn-new-project">New Project</button>
     <button class="top-btn" id="btn-load-project">Load Project</button>
     <input type="file" id="load-project-input" accept=".json" style="display:none">
+    <button class="top-btn primary" id="btn-save">Save</button>
+    <button class="top-btn" id="btn-save-as">Save As…</button>
   </div>
 
   <!-- MAIN LAYOUT -->
@@ -1676,6 +1678,7 @@
     let selectedNodeId = null;   // id of the currently selected tree node
     let selectedMsgs   = new Set(); // set of send_date keys that are checked
     let lastClickedMsg = null;   // for shift-click range selection
+    let fileHandle     = null;   // File System Access API handle for silent saves
     let showUnassignedOnly = false; // filter toggle state
 
     // A lookup table: send_date → node id, rebuilt whenever assignments change.
@@ -1712,6 +1715,7 @@
       assignmentMap      = {};
       collapsedNodes.clear();
       showUnassignedOnly = false;
+      fileHandle         = null;   // new project has no associated file yet
 
       // Reset filter and import UI
       document.getElementById("toggle-unassigned").classList.remove("active");
@@ -1737,30 +1741,62 @@
 
     /**
      * Loads a previously exported payload JSON back into the editor.
+     * Uses showOpenFilePicker when available so we can save back to the same
+     * file without a dialog. Falls back to the hidden file input otherwise.
      */
-    function loadProjectFile() {
-      document.getElementById("load-project-input").click();
+    async function loadProjectFile() {
+      if (hasFileSystemAccess()) {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            types: [{
+              description: "STSS Project File",
+              accept: { "application/json": [".json"] }
+            }]
+          });
+          const file = await handle.getFile();
+          const text = await file.text();
+          try {
+            const loaded = STSS.importProject(text);
+            project        = loaded;
+            selectedNodeId = null;
+            selectedMsgs.clear();
+            fileHandle = handle;   // keep for silent saves
+            rebuildAssignmentMap();
+            syncUIToProject();
+            setSaveStatus("Loaded · " + handle.name + " (Save will update this file)");
+          } catch(err) {
+            alert("Could not load project: " + err.message);
+          }
+        } catch(e) {
+          if (e.name !== "AbortError") {
+            // Fall back to hidden input if API fails unexpectedly
+            document.getElementById("load-project-input").click();
+          }
+        }
+      } else {
+        document.getElementById("load-project-input").click();
+      }
     }
 
+    // Fallback file input for browsers without File System Access API
     document.getElementById("load-project-input").addEventListener("change", function(e) {
       if (!e.target.files.length) return;
       const reader = new FileReader();
       reader.onload = function(ev) {
         try {
           const loaded = STSS.importProject(ev.target.result);
-          project = loaded;
+          project        = loaded;
           selectedNodeId = null;
           selectedMsgs.clear();
+          fileHandle     = null;   // no handle from legacy input
           rebuildAssignmentMap();
           syncUIToProject();
-          autosave();
-          setSaveStatus("Project loaded.");
+          setSaveStatus("Project loaded. Use Save As to enable silent saves.");
         } catch(err) {
           alert("Could not load project: " + err.message);
         }
       };
       reader.readAsText(e.target.files[0]);
-      // Reset so the same file can be re-selected if needed
       e.target.value = "";
     });
 
@@ -3916,6 +3952,103 @@
     }
 
     // ==========================================================================
+    // SECTION 20: FILE SYSTEM ACCESS API — SAVE / SAVE AS
+    // Uses the File System Access API (Chrome/Edge) for silent in-place saves.
+    // Falls back to the existing download-based export for unsupported browsers.
+    // ==========================================================================
+
+    /**
+     * Returns true if the File System Access API is available in this browser.
+     */
+    function hasFileSystemAccess() {
+      return typeof window.showSaveFilePicker === "function";
+    }
+
+    /**
+     * Opens a Save As dialog, stores the file handle, then writes the project.
+     * On success the handle is kept for subsequent silent saves via save().
+     */
+    async function saveAs() {
+      if (!project) { alert("No project to save."); return; }
+
+      if (!hasFileSystemAccess()) {
+        // Fallback: just trigger the download export
+        exportPayload();
+        setSaveStatus("Save As not supported in this browser — file downloaded.");
+        return;
+      }
+
+      try {
+        const safeName = (project.meta.title || "story")
+          .replace(/[^a-z0-9_\-\s]/gi, "")
+          .trim()
+          .replace(/\s+/g, "_") || "story";
+
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: safeName + ".json",
+          types: [{
+            description: "STSS Project File",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+
+        await writeToHandle(fileHandle);
+        setSaveStatus("Saved to " + fileHandle.name);
+      } catch (e) {
+        // User cancelled the dialog — not an error
+        if (e.name !== "AbortError") {
+          setSaveStatus("Save failed: " + e.message, "warn");
+        }
+      }
+    }
+
+    /**
+     * Saves to the existing file handle silently.
+     * If no handle exists yet (first save this session), calls saveAs() instead.
+     * Also triggered by Ctrl+S.
+     */
+    async function save() {
+      if (!project) { alert("No project to save."); return; }
+
+      if (!fileHandle) {
+        // No handle yet — need to pick a file first
+        await saveAs();
+        return;
+      }
+
+      if (!hasFileSystemAccess()) {
+        exportPayload();
+        return;
+      }
+
+      try {
+        await writeToHandle(fileHandle);
+        setSaveStatus("Saved · " + formatTime(new Date()));
+      } catch (e) {
+        if (e.name === "NotAllowedError") {
+          // Permission expired (e.g. after page reload) — request it again
+          setSaveStatus("Permission needed — use Save As to re-establish the file.", "warn");
+          fileHandle = null;
+        } else {
+          setSaveStatus("Save failed: " + e.message, "warn");
+        }
+      }
+    }
+
+    /**
+     * Writes the current project to a FileSystemFileHandle.
+     *
+     * @param {FileSystemFileHandle} handle
+     */
+    async function writeToHandle(handle) {
+      project.meta.modified = new Date().toISOString();
+      const json     = STSS.exportProject(project);
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+    }
+
+    // ==========================================================================
     // BUTTON EVENT WIRING
     // All button events are wired here via addEventListener rather than inline
     // onclick= attributes, which fail under file:// security restrictions in
@@ -3925,6 +4058,8 @@
       // Top bar
       document.getElementById("btn-new-project").addEventListener("click", newProject);
       document.getElementById("btn-load-project").addEventListener("click", loadProjectFile);
+      document.getElementById("btn-save").addEventListener("click", save);
+      document.getElementById("btn-save-as").addEventListener("click", saveAs);
 
       // Sidebar tree controls
       document.getElementById("btn-add-root").addEventListener("click", function() { addNode(null); });
@@ -4026,6 +4161,14 @@
       // Style preview navigation
       document.getElementById("btn-prev-msg").addEventListener("click", () => stepPreview(-1));
       document.getElementById("btn-next-msg").addEventListener("click", () => stepPreview(1));
+
+      // Ctrl+S keyboard shortcut
+      document.addEventListener("keydown", e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+          e.preventDefault();
+          save();
+        }
+      });
 
       // Message override preset buttons
       document.getElementById("btn-preset-save").addEventListener("click", savePreset);
