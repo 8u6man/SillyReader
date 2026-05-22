@@ -1,5 +1,5 @@
 {
-  "_comment": "STSS Reader story index. Each entry points to either an author index file ({ \"stories\": [...] }) or a direct story payload. To add your stories, submit a PR adding one entry to this array. Use raw.githubusercontent.com URLs, not github.com/blob URLs.",
+  "_comment": "STSS Reader story index. Each entry points to either an author index file ({ \"stories\": [...] }) or a direct story payload. To add your stories, submit a PR to the staging branch, adding one entry to this array. Use raw.githubusercontent.com URLs, not github.com/blob URLs.",
   "indices": [
     {
       "name": "Wren",
