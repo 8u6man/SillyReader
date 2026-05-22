@@ -995,8 +995,30 @@
     /* Paragraph spacing within a bubble */
     .bubble-body p {
       margin-bottom: 0.75em;
+      text-indent: 1.5em;
     }
     .bubble-body p:last-child { margin-bottom: 0; }
+
+    /* Markdown rendered elements */
+    .bubble-body strong { font-weight: 700; }
+    .bubble-body em     { font-style: italic; }
+    .bubble-body del    { text-decoration: line-through; opacity: 0.75; }
+    .bubble-body code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 3px;
+      padding: 0.1em 0.35em;
+    }
+    .md-blockquote {
+      display: block;
+      border-left: 3px solid rgba(255,255,255,0.2);
+      padding-left: 0.75em;
+      margin: 0.25em 0;
+      opacity: 0.75;
+      font-style: italic;
+    }
 
     /* ================================================================
        CONTEXT MENU (right-click / long-press bookmark)
@@ -2017,15 +2039,14 @@
       body.setAttribute("style", body.getAttribute("style") + ";" + style.bubble_css);
     }
 
-    // Message text — render newlines as paragraphs
-    const paragraphs = (msg.mes || "").split(/\r?\n\r?\n|\r\n/).filter(s => s.trim());
+    // Message text — split on double newlines for paragraphs, render markdown within each
+    const paragraphs = (msg.mes || "").split(/\r?\n\r?\n/).filter(s => s.trim());
     if (paragraphs.length <= 1) {
-      // Single block — respect single newlines with <br>
-      body.innerHTML = escapeHtml(msg.mes || "").replace(/\r?\n/g, "<br>");
+      body.innerHTML = renderMarkdown(msg.mes || "");
     } else {
       for (const para of paragraphs) {
         const p = document.createElement("p");
-        p.innerHTML = escapeHtml(para).replace(/\r?\n/g, "<br>");
+        p.innerHTML = renderMarkdown(para);
         body.appendChild(p);
       }
     }
@@ -2765,6 +2786,58 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  /**
+   * Renders a subset of Markdown to HTML.
+   * Input is PLAIN TEXT (not yet HTML-escaped).
+   * Handles: ***bold italic***, **bold**, *italic*, __bold__, _italic_,
+   *          ~~strikethrough~~, `inline code`, > blockquote lines.
+   * Single newlines become <br>. Does NOT handle headers, lists, or block code.
+   *
+   * Order matters: escape HTML first so we don't mangle user text,
+   * then apply patterns to the escaped string.
+   */
+  function renderMarkdown(text) {
+    if (!text) return "";
+
+    // Step 1 — split into lines so we can handle blockquotes line by line,
+    // then rejoin. We process inline markdown per-line.
+    const lines = text.split(/\r?\n/);
+    const processed = lines.map(line => {
+      // Escape HTML first so user's < > & are safe
+      let s = escapeHtml(line);
+
+      // Blockquote: lines starting with "> "
+      if (/^&gt;\s?/.test(s)) {
+        s = '<span class="md-blockquote">' + s.replace(/^&gt;\s?/, "") + "</span>";
+        return s;
+      }
+
+      // Bold italic (must come before bold and italic individually)
+      s = s.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
+      s = s.replace(/___(.+?)___/g,        "<strong><em>$1</em></strong>");
+
+      // Bold
+      s = s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+      s = s.replace(/__(.+?)__/g,      "<strong>$1</strong>");
+
+      // Italic — * and _ variants.
+      // Use a negative lookbehind/ahead to avoid matching inside words for _
+      s = s.replace(/\*(.*?)\*/g, "<em>$1</em>");
+      s = s.replace(/(?<!\w)_(.+?)_(?!\w)/g, "<em>$1</em>");
+
+      // Strikethrough
+      s = s.replace(/~~(.*?)~~/g, "<del>$1</del>");
+
+      // Inline code — preserve content literally (already escaped above)
+      s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+      return s;
+    });
+
+    // Rejoin with <br> for single newlines
+    return processed.join("<br>");
   }
 
   // --------------------------------------------------------------------------
