@@ -155,7 +155,13 @@
       color: var(--ui-text-dim);
       margin-top: 0.5rem;
       line-height: 1.5;
+      max-height: calc(1.5em * 4);
+      overflow-y: auto;
+      padding-right: 0.25rem;
     }
+    .sidebar-story-desc::-webkit-scrollbar { width: 3px; }
+    .sidebar-story-desc::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-story-desc::-webkit-scrollbar-thumb { background: var(--ui-border); border-radius: 2px; }
 
     /* Sidebar body (scrollable) */
     .sidebar-body {
