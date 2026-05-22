@@ -2,12 +2,15 @@
 An App for Editing, Reading, and Distributing SillyTavern* Chats.
 
 **Editor:**
+
 https://8u6man.github.io/SillyReader/stss-editor
 
 **Reader:**
+
 https://8u6man.github.io/SillyReader/stss-reader
 
 **Editor Manual:**
+
 https://github.com/8u6man/SillyReader/blob/main/EDITOR_GUIDE.md
 
 # This app allows you to:
@@ -47,7 +50,8 @@ Both run entirely in your browser. No account, no server, no install.
 4. Optionally add character portraits, backgrounds, fonts, and music (untested) in the Styles panel
 5. Click **Export Payload JSON** — this gives you a `.json` file
 
-*Additional Supported Export Types*
+## *Additional Supported Export Types*
+
 Perchance AI-Character-Chat Thread Exports
 
 ### Step 2 — Host your payload somewhere
