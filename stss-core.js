@@ -359,6 +359,168 @@ function ingestJsonl(jsonlText, project) {
 }
 
 // ---------------------------------------------------------------------------
+// SECTION 3B: AI-CHARACTER-CHAT (AICC) PARSER
+// Handles the Dexie JSON export format from ai-character-chat.com.
+// A single export may contain multiple tables; we only care about
+// "characters" (for name lookup) and "messages" (the actual chat).
+// The caller is expected to pass a single-thread export; if multiple
+// threads are present all their messages will be imported together,
+// ordered by creationTime (which doubles as the unique key).
+// ---------------------------------------------------------------------------
+
+/**
+ * Finds a table by name in the AICC export's data.data array.
+ * Returns its rows array, or [] if not found.
+ *
+ * @param {object} root  - Parsed AICC JSON root object
+ * @param {string} name  - Table name, e.g. "characters" or "messages"
+ * @returns {object[]}
+ */
+function _aiccTable(root, name) {
+  const tables = root && root.data && Array.isArray(root.data.data)
+    ? root.data.data : [];
+  const table = tables.find(t => t.tableName === name);
+  return (table && Array.isArray(table.rows)) ? table.rows : [];
+}
+
+/**
+ * Parses an AICC Dexie JSON export object into a normalised message list
+ * compatible with importMessages().
+ *
+ * Name resolution priority per message:
+ *   1. message.name (non-null inline name, e.g. "Narrator")
+ *   2. characterId lookup → character.name  (AI characters)
+ *   3. characterId === -1  → userCharacter name from the character row
+ *                            (falls back to "User" if not set)
+ *   4. characterId === -2  → "Narrator" (system/narrator slot)
+ *   5. anything else unresolved → "Unknown"
+ *
+ * The returned objects are shaped so createMessage() / importMessages()
+ * can consume them directly — they carry a synthetic `send_date` field
+ * (the string form of creationTime) used as the unique dict key.
+ *
+ * @param {object} root - Parsed AICC JSON root object
+ * @returns {{
+ *   chatMeta: object,
+ *   messages: object[]
+ * }}
+ */
+function parseAicc(root) {
+  // ---- Build character id → name map ----
+  const charRows = _aiccTable(root, "characters");
+  const idToName = {};   // numeric id  → character name string
+  let   userName = "User"; // fallback user name
+
+  for (const char of charRows) {
+    if (char.id !== undefined && char.name) {
+      idToName[char.id] = char.name;
+    }
+    // Prefer the most specific user name we can find.
+    // The character row may have userCharacter.name set.
+    if (char.userCharacter && char.userCharacter.name) {
+      userName = char.userCharacter.name;
+    }
+  }
+
+  // ---- Parse messages ----
+  const msgRows = _aiccTable(root, "messages");
+
+  // Sort by creationTime ascending so order is deterministic on import
+  const sorted = msgRows.slice().sort((a, b) => a.creationTime - b.creationTime);
+
+  const messages = [];
+
+  for (const row of sorted) {
+    if (!row.creationTime) {
+      console.warn("stss-core (AICC): message missing creationTime, skipping:", row);
+      continue;
+    }
+
+    // Resolve speaker name
+    let name;
+    if (row.name != null && row.name !== "") {
+      // Inline name wins (Narrator, custom personas, etc.)
+      name = row.name;
+    } else if (row.characterId === -1) {
+      name = userName;
+    } else if (row.characterId === -2) {
+      name = "Narrator";
+    } else if (idToName[row.characterId]) {
+      name = idToName[row.characterId];
+    } else {
+      name = "Unknown";
+    }
+
+    const isUser   = row.characterId === -1;
+    const isSystem = row.characterId === -2;
+
+    // Normalise into the shape importMessages() / createMessage() expects.
+    // send_date is the unique key — we use the string form of creationTime.
+    messages.push({
+      send_date:    String(row.creationTime),
+      name,
+      is_user:      isUser,
+      is_system:    isSystem,
+      mes:          row.message || "",
+      extra:        {},
+      force_avatar: null,
+    });
+  }
+
+  // Build a lightweight chatMeta equivalent so the caller gets
+  // the same return shape as ingestJsonl()
+  const threadRows = _aiccTable(root, "threads");
+  const chatMeta = {
+    source:     "aicc",
+    threadName: threadRows.length > 0 ? (threadRows[0].name || "Imported Thread") : "Imported Thread",
+    threadCount: threadRows.length,
+  };
+
+  return { chatMeta, messages };
+}
+
+/**
+ * Detects whether a parsed JSON object looks like an AICC Dexie export.
+ * Used by the editor to route the file to the right parser.
+ *
+ * @param {object} root
+ * @returns {boolean}
+ */
+function isAiccExport(root) {
+  return (
+    root &&
+    root.formatName === "dexie" &&
+    root.data &&
+    Array.isArray(root.data.data)
+  );
+}
+
+/**
+ * Convenience: parse + import an AICC export in one call.
+ * Mirrors the signature of ingestJsonl() for drop-in use in the editor.
+ *
+ * @param {string} jsonText  - Raw file text
+ * @param {object} project   - Mutated in place
+ * @returns {{ chatMeta: object, added: number, skipped: number }}
+ */
+function ingestAicc(jsonText, project) {
+  let root;
+  try {
+    root = JSON.parse(jsonText);
+  } catch (e) {
+    throw new Error("AICC import: invalid JSON — " + e.message);
+  }
+
+  if (!isAiccExport(root)) {
+    throw new Error("AICC import: file does not look like an AI-Character-Chat export.");
+  }
+
+  const { chatMeta, messages } = parseAicc(root);
+  const { added, skipped }     = importMessages(project, messages);
+  return { chatMeta, added, skipped };
+}
+
+// ---------------------------------------------------------------------------
 // SECTION 4: STYLE RESOLVER
 // Global > Character > Message inheritance chain.
 // ---------------------------------------------------------------------------
@@ -651,6 +813,9 @@ if (typeof window !== "undefined") {
     parseJsonl,
     importMessages,
     ingestJsonl,
+    parseAicc,
+    isAiccExport,
+    ingestAicc,
     // Style resolution
     resolveStyle,
     INHERITABLE_FIELDS,
@@ -677,6 +842,7 @@ if (typeof module !== "undefined" && module.exports) {
     createProject, createNode, createMessage, createCharacter,
     djb2Hash, registerImage, resolveImage, migrateImageFields,
     parseJsonl, importMessages, ingestJsonl,
+    parseAicc, isAiccExport, ingestAicc,
     resolveStyle, INHERITABLE_FIELDS,
     createPreset, applyPreset, deletePreset, PRESET_FIELDS,
     findNodeById, getFlatMessageOrder, isLeafNode,

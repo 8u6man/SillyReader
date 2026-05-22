@@ -2157,11 +2157,28 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          const { added, skipped } = STSS.ingestJsonl(e.target.result, project);
-          // Show import result in sidebar
+          const text = e.target.result;
+
+          // Auto-detect format: try to parse as JSON first to check for
+          // AICC's Dexie envelope; fall back to treating as JSONL.
+          let result;
+          let formatLabel = "ST";
+
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch(_) { /* not valid JSON, must be JSONL */ }
+
+          if (parsed !== null && STSS.isAiccExport(parsed)) {
+            result = STSS.ingestAicc(text, project);
+            formatLabel = "AICC";
+          } else {
+            result = STSS.ingestJsonl(text, project);
+          }
+
+          const { added, skipped } = result;
           document.getElementById("import-stats").innerHTML =
             `<span class="ok">+${added} added</span>`
-            + (skipped ? `  <span class="dim">${skipped} skipped</span>` : "");
+            + (skipped ? `  <span class="dim">${skipped} skipped</span>` : "")
+            + `  <span class="dim">[${formatLabel}]</span>`;
           renderMessages();
           autosave();
           setSaveStatus("Imported. Autosaved.");
