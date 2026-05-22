@@ -33,8 +33,8 @@
       --font-mono:      'IBM Plex Mono', monospace;
 
       /* Layout */
-      --sidebar-w:      300px;
-      --ctrl-size:      40px;
+      --sidebar-w:      200px;
+      --ctrl-size:      25px;
       --vn-portrait-w:  35%;
       --vn-text-w:      65%;
 
@@ -185,6 +185,7 @@
     /* Layout toggle */
     .layout-toggle-row {
       display: flex;
+      flex-direction: column;
       margin: 0 1.25rem;
       border: 1px solid var(--ui-border);
       border-radius: 4px;
@@ -193,9 +194,10 @@
 
     .layout-btn {
       flex: 1;
-      padding: 0.4rem;
+      padding: 0.35rem 0.5rem;
       background: none;
       border: none;
+      border-bottom: 1px solid var(--ui-border);
       color: var(--ui-text-dim);
       font-family: var(--font-ui);
       font-size: 0.72rem;
@@ -203,7 +205,7 @@
       transition: background var(--t-ui), color var(--t-ui);
       text-align: center;
     }
-    .layout-btn:first-child { border-right: 1px solid var(--ui-border); }
+    .layout-btn:last-child { border-bottom: none; }
     .layout-btn.active {
       background: var(--ui-accent-dim);
       color: var(--ui-accent);
@@ -311,7 +313,101 @@
       flex-shrink: 0;
       padding: 0.75rem 1.25rem;
       border-top: 1px solid var(--ui-border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
+
+    .sidebar-repo-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.35rem;
+      color: var(--ui-text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      border: 1px solid var(--ui-border);
+      border-radius: 3px;
+      transition: color var(--t-ui), border-color var(--t-ui), background var(--t-ui);
+    }
+    .sidebar-repo-link:hover {
+      color: var(--ui-text);
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* Font size control */
+    .sb-font-size-wrap {
+      padding: 0.1rem 1.25rem 0.35rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .sb-font-size-slider {
+      width: 100%;
+      accent-color: var(--ui-accent);
+      cursor: pointer;
+      height: 3px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--ui-border);
+      border-radius: 2px;
+      outline: none;
+      display: block;
+    }
+    .sb-font-size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--ui-accent);
+      cursor: pointer;
+    }
+    .sb-font-size-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--ui-accent);
+      border: none;
+      cursor: pointer;
+    }
+    .sb-font-size-bottom {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .sb-font-size-label {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.06em;
+      color: var(--ui-text-dim);
+      flex-shrink: 0;
+    }
+    .sb-font-size-value {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--ui-accent);
+      flex: 1;
+    }
+    .sb-font-size-reset {
+      background: none;
+      border: 1px solid var(--ui-border);
+      border-radius: 3px;
+      color: var(--ui-text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      cursor: pointer;
+      padding: 0.1rem 0.3rem;
+      line-height: 1.4;
+      flex-shrink: 0;
+      transition: color var(--t-ui), border-color var(--t-ui);
+      letter-spacing: 0.04em;
+    }
+    .sb-font-size-reset:hover { color: var(--ui-text); border-color: rgba(255,255,255,0.2); }
 
     .sidebar-load-btn {
       width: 100%;
@@ -335,12 +431,12 @@
     ================================================================ */
     #float-controls {
       position: fixed;
-      top: 1rem;
-      right: 1rem;
+      top: 0.3rem;
+      right: 0.3rem;
       z-index: 30;
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
+      gap: 0.3rem;
     }
 
     .fctl-btn {
@@ -750,8 +846,83 @@
     #vn-message-stream { width: 100%; }
 
     /* ================================================================
-       MESSAGE BUBBLE — shared by both modes
+       MOBILE VN MODE LAYOUT
+       Portrait behind text, pinned to top-center of screen.
+       Text panel anchored to bottom 55%.
     ================================================================ */
+    #mode-vnm {
+      display: none;
+      flex: 1;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+    #mode-vnm.active { display: block; }
+
+    /* Portrait — absolutely positioned, full height, behind text */
+    #vnm-portrait-panel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .vnm-portrait-img {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: auto;
+      height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      object-position: top center;
+      transition: opacity var(--t-portrait);
+    }
+    .vnm-portrait-img.hidden  { opacity: 0; }
+    .vnm-portrait-img.visible { opacity: 1; }
+
+    /* Gradient fade at the bottom of the portrait panel so text sits cleanly */
+    #vnm-portrait-panel::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: linear-gradient(to bottom, transparent, var(--vnm-fade-color, #1a1a2e));
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Text panel — bottom 55%, scrollable */
+    #vnm-text-panel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 55%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      z-index: 3;
+      padding: 0.5rem 0 5rem;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    #vnm-text-panel::-webkit-scrollbar { width: 4px; }
+    #vnm-text-panel::-webkit-scrollbar-track { background: transparent; }
+    #vnm-text-panel::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 2px;
+    }
+
+    #vnm-message-stream { width: 100%; padding: 0 0.75rem; }
+
+    /* In mobile VN mode, hide the small avatar — portrait handles it */
+    #mode-vnm .bubble-avatar { display: none; }
     .msg-wrap {
       position: relative;
       margin-bottom: 1.5rem;
@@ -1153,6 +1324,21 @@
           <div class="layout-toggle-row">
             <button class="layout-btn active" id="btn-layout-fullscreen">Fullscreen</button>
             <button class="layout-btn" id="btn-layout-vn">Visual Novel</button>
+            <button class="layout-btn" id="btn-layout-vnm">VN Mobile</button>
+          </div>
+        </div>
+
+        <!-- Font size -->
+        <div class="sb-section">
+          <div class="sb-section-title">Text Size</div>
+          <div class="sb-font-size-wrap">
+            <input type="range" class="sb-font-size-slider" id="font-size-slider"
+                   min="0.7" max="1.6" step="0.05" value="1.0">
+            <div class="sb-font-size-bottom">
+              <span class="sb-font-size-label">Aa</span>
+              <span class="sb-font-size-value" id="font-size-value">1.0×</span>
+              <button class="sb-font-size-reset" id="font-size-reset" title="Reset to default">✕ reset</button>
+            </div>
           </div>
         </div>
 
@@ -1182,7 +1368,11 @@
       </div><!-- /sidebar-body -->
 
       <div class="sidebar-footer">
-        <input type="file" id="sidebar-file-input" accept=".json" style="display:none">
+        <a class="sidebar-repo-link"
+           href="https://github.com/8u6man/SillyReader"
+           target="_blank" rel="noopener noreferrer">
+          ⌥ Visit the Repo
+        </a>
       </div>
     </div><!-- /sidebar -->
 
@@ -1201,6 +1391,19 @@
       <!-- Text area (right) -->
       <div id="vn-text-panel">
         <div id="vn-message-stream"></div>
+      </div>
+    </div>
+
+    <!-- Mobile VN mode -->
+    <div id="mode-vnm">
+      <!-- Portrait — top, centered, behind text -->
+      <div id="vnm-portrait-panel">
+        <img class="vnm-portrait-img hidden" id="vnm-portrait-a" src="" alt="">
+        <img class="vnm-portrait-img hidden" id="vnm-portrait-b" src="" alt="">
+      </div>
+      <!-- Text panel — bottom 55% -->
+      <div id="vnm-text-panel">
+        <div id="vnm-message-stream"></div>
       </div>
     </div>
 
@@ -1248,8 +1451,10 @@
   </div>
 
   <!-- Hidden audio elements -->
-  <audio id="audio-music" loop></audio>
-  <audio id="audio-sting"></audio>
+  <audio id="audio-music" loop style="display:none;"></audio>
+  <audio id="audio-sting" style="display:none;"></audio>
+  <!-- Hidden file input for sidebar "Load New Story" -->
+  <input type="file" id="sidebar-file-input" accept=".json" style="display:none; position:absolute; pointer-events:none;">
 
   <script>
   // ==========================================================================
@@ -1267,7 +1472,7 @@
   let storyId        = null;   // hash key for localStorage
   let storyUrl       = null;   // URL if loaded from URL, else null
   let flatOrder      = [];     // ordered send_date keys from STSS.getFlatMessageOrder
-  let layoutMode     = "fullscreen"; // "fullscreen" | "vn"
+  let layoutMode     = "fullscreen"; // "fullscreen" | "vn" | "vnm"
   let isMuted        = false;
   let currentMusic   = null;   // URL of currently playing track
   let bookmarks      = [];     // [{ key, label }]
@@ -1275,9 +1480,14 @@
   let currentScrollEl = null;  // the scroll container for the active layout
   let activeTocKey   = null;   // send_date key at the viewport midpoint
 
-  // VN portrait state
+  // User font scale override (1.0 = no change, null = not set)
+  let userFontScale  = 1.0;
+
+  // VN portrait state (shared by vn and vnm layouts; each has separate DOM slots)
   let vnActiveSlot   = "a";    // "a" | "b" — which img element is visible
   let vnCurrentPortrait = null; // current portrait hash/url
+  let vnmActiveSlot  = "a";
+  let vnmCurrentPortrait = null;
 
   // Context menu target
   let ctxTargetKey   = null;   // send_date key of right-clicked message
@@ -1501,16 +1711,19 @@
   function renderMessages() {
     const fsStream  = document.getElementById("fs-message-stream");
     const vnStream  = document.getElementById("vn-message-stream");
+    const vnmStream = document.getElementById("vnm-message-stream");
 
-    fsStream.innerHTML = "";
-    vnStream.innerHTML = "";
+    fsStream.innerHTML  = "";
+    vnStream.innerHTML  = "";
+    vnmStream.innerHTML = "";
 
     if (!flatOrder.length) {
       const empty = document.createElement("p");
       empty.style.cssText = "color:rgba(255,255,255,0.3);font-style:italic;padding:4rem 0;text-align:center;";
       empty.textContent = "No messages in this story's structure.";
       fsStream.appendChild(empty.cloneNode(true));
-      vnStream.appendChild(empty);
+      vnStream.appendChild(empty.cloneNode(true));
+      vnmStream.appendChild(empty);
       return;
     }
 
@@ -1524,18 +1737,23 @@
       // Inject structure heading if this is the first message in a node
       if (nodeFirstMsg[key]) {
         const node = nodeFirstMsg[key];
-        const headingFS = buildStructureHeading(node);
-        const headingVN = buildStructureHeading(node);
-        headingFS.dataset.nodeId = node.id;
-        headingVN.dataset.nodeId = node.id;
+        const headingFS  = buildStructureHeading(node);
+        const headingVN  = buildStructureHeading(node);
+        const headingVNM = buildStructureHeading(node);
+        headingFS.dataset.nodeId  = node.id;
+        headingVN.dataset.nodeId  = node.id;
+        headingVNM.dataset.nodeId = node.id;
         fsStream.appendChild(headingFS);
         vnStream.appendChild(headingVN);
+        vnmStream.appendChild(headingVNM);
       }
 
-      const bubbleFS = buildMessageBubble(key);
-      const bubbleVN = buildMessageBubble(key);
+      const bubbleFS  = buildMessageBubble(key);
+      const bubbleVN  = buildMessageBubble(key);
+      const bubbleVNM = buildMessageBubble(key);
       fsStream.appendChild(bubbleFS);
       vnStream.appendChild(bubbleVN);
+      vnmStream.appendChild(bubbleVNM);
     }
 
     // Sentinels for bookmark "jump to end"
@@ -1548,6 +1766,11 @@
     sentVN.className = "scroll-sentinel";
     sentVN.id = "sentinel-end-vn";
     vnStream.appendChild(sentVN);
+
+    const sentVNM = document.createElement("div");
+    sentVNM.className = "scroll-sentinel";
+    sentVNM.id = "sentinel-end-vnm";
+    vnmStream.appendChild(sentVNM);
   }
 
   /**
@@ -1649,7 +1872,18 @@
 
     // Apply resolved styles
     if (style.font_family)  body.style.fontFamily = style.font_family;
-    if (style.font_size)    body.style.fontSize   = style.font_size;
+
+    // Font size: resolve payload value, then multiply by user scale override.
+    // Payload sizes are stored as rem strings (e.g. "1rem", "1.1rem").
+    // We parse out the numeric part, apply the scale, and emit em so it
+    // inherits correctly from the stream container's base size.
+    {
+      const rawSize = style.font_size || "1rem";
+      const baseRem = parseFloat(rawSize) || 1.0;
+      const scaled  = baseRem * userFontScale;
+      body.style.fontSize = scaled + "rem";
+    }
+
     if (style.text_color)   body.style.color       = style.text_color;
     if (style.text_shadow)  body.style.textShadow  = style.text_shadow;
 
@@ -1661,7 +1895,8 @@
     const g = parseInt(bbColor.slice(3,5), 16);
     const b = parseInt(bbColor.slice(5,7), 16);
     const alpha = isNaN(bbOpacity) ? 0.45 : Math.max(0, Math.min(1, bbOpacity));
-    body.style.background = `rgba(${r},${g},${b},${alpha})`;
+    body.style.background   = `rgba(${r},${g},${b},${alpha})`;
+    body.style.borderRadius = "6px";
 
     // Extra bubble_css
     if (style.bubble_css) {
@@ -1732,7 +1967,10 @@
     if (!triggerObserver) return;
 
     const streamId = layoutMode === "fullscreen"
-      ? "fs-message-stream" : "vn-message-stream";
+      ? "fs-message-stream"
+      : layoutMode === "vn"
+        ? "vn-message-stream"
+        : "vnm-message-stream";
     const stream = document.getElementById(streamId);
 
     stream.querySelectorAll(".msg-wrap").forEach(el => {
@@ -1771,6 +2009,8 @@
       // VN mode: portrait update
       if (layoutMode === "vn") {
         updateVnPortrait(style.portrait);
+      } else if (layoutMode === "vnm") {
+        updateVnmPortrait(style.portrait);
       }
 
       // ToC highlight: find which node owns this message
@@ -1808,22 +2048,32 @@
 
     document.getElementById("mode-fullscreen").classList.toggle("active", mode === "fullscreen");
     document.getElementById("mode-vn").classList.toggle("active", mode === "vn");
+    document.getElementById("mode-vnm").classList.toggle("active", mode === "vnm");
 
     document.getElementById("btn-layout-fullscreen").classList.toggle("active", mode === "fullscreen");
     document.getElementById("btn-layout-vn").classList.toggle("active", mode === "vn");
+    document.getElementById("btn-layout-vnm").classList.toggle("active", mode === "vnm");
 
     // Re-attach observer to the now-active stream
     setupObservers();
 
-    // The VN portrait needs to be re-applied since we switched streams
+    // Portrait reset when switching to a portrait mode
     if (mode === "vn") {
-      // Reset portrait crossfade state and apply current portrait
       resetVnPortrait();
+    } else if (mode === "vnm") {
+      resetVnmPortrait();
+      // Sample the currently active background image if there is one
+      const bgLayer  = document.getElementById("bg-layer");
+      const bgImg    = bgLayer.style.backgroundImage; // e.g. 'url("data:...")'
+      const srcMatch = bgImg && bgImg.match(/url\(["']?(.*?)["']?\)/);
+      syncVnmFadeColor(srcMatch ? srcMatch[1] : null);
     }
 
     currentScrollEl = mode === "fullscreen"
       ? document.getElementById("mode-fullscreen")
-      : document.getElementById("vn-text-panel");
+      : mode === "vn"
+        ? document.getElementById("vn-text-panel")
+        : document.getElementById("vnm-text-panel");
 
     // Restore scroll position in the new layout
     restoreScroll();
@@ -1891,6 +2141,121 @@
   }
 
   // --------------------------------------------------------------------------
+  // SECTION 7b: MOBILE VN PORTRAIT
+  // --------------------------------------------------------------------------
+
+  function updateVnmPortrait(hashOrNull) {
+    const src = STSS.resolveImage(project, hashOrNull);
+    if (src === vnmCurrentPortrait) return;
+    vnmCurrentPortrait = src;
+
+    const imgA = document.getElementById("vnm-portrait-a");
+    const imgB = document.getElementById("vnm-portrait-b");
+
+    const nextSlot  = vnmActiveSlot === "a" ? "b" : "a";
+    const nextImg   = nextSlot === "a" ? imgA : imgB;
+    const activeImg = vnmActiveSlot === "a" ? imgA : imgB;
+
+    if (src) {
+      nextImg.src = src;
+      nextImg.onload = () => {
+        nextImg.classList.add("visible");
+        nextImg.classList.remove("hidden");
+        activeImg.classList.add("hidden");
+        activeImg.classList.remove("visible");
+        vnmActiveSlot = nextSlot;
+      };
+      if (nextImg.complete) {
+        nextImg.classList.add("visible");
+        nextImg.classList.remove("hidden");
+        activeImg.classList.add("hidden");
+        activeImg.classList.remove("visible");
+        vnmActiveSlot = nextSlot;
+      }
+    } else {
+      activeImg.classList.add("hidden");
+      activeImg.classList.remove("visible");
+    }
+  }
+
+  function resetVnmPortrait() {
+    vnmCurrentPortrait = null;
+    vnmActiveSlot = "a";
+    const imgA = document.getElementById("vnm-portrait-a");
+    const imgB = document.getElementById("vnm-portrait-b");
+    imgA.classList.add("hidden");   imgA.classList.remove("visible");
+    imgB.classList.add("hidden");   imgB.classList.remove("visible");
+    imgA.src = ""; imgB.src = "";
+  }
+
+  /**
+   * Samples the bottom 20% of a background image and averages the RGB values,
+   * then sets --vnm-fade-color to that colour so the portrait gradient blends
+   * naturally. Falls back to the solid background-color (or the dark default)
+   * if no image is present or the canvas read fails.
+   *
+   * @param {string|null} imageSrc - data URL of the background image, or null
+   */
+  function syncVnmFadeColor(imageSrc) {
+    const vnmEl = document.getElementById("mode-vnm");
+
+    // No image — use solid background-color from bg-layer, or dark default
+    if (!imageSrc) {
+      const bgLayer = document.getElementById("bg-layer");
+      const solid   = bgLayer.style.backgroundColor || "#1a1a2e";
+      vnmEl.style.setProperty("--vnm-fade-color", solid);
+      return;
+    }
+
+    // Sample the image on a canvas
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas  = document.createElement("canvas");
+        // Work at 1/4 resolution — plenty for an average, much faster
+        const scale   = 0.25;
+        canvas.width  = Math.max(1, Math.floor(img.naturalWidth  * scale));
+        canvas.height = Math.max(1, Math.floor(img.naturalHeight * scale));
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Sample the bottom 20% of the scaled image
+        const sampleTop = Math.floor(canvas.height * 0.8);
+        const sampleH   = canvas.height - sampleTop;
+        if (sampleH < 1) throw new Error("image too small");
+
+        const pixels = ctx.getImageData(0, sampleTop, canvas.width, sampleH).data;
+
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          // Skip fully-transparent pixels so they don't drag the average to black
+          if (pixels[i + 3] < 10) continue;
+          r += pixels[i];
+          g += pixels[i + 1];
+          b += pixels[i + 2];
+          count++;
+        }
+
+        if (count === 0) throw new Error("no opaque pixels");
+
+        r = Math.round(r / count);
+        g = Math.round(g / count);
+        b = Math.round(b / count);
+
+        vnmEl.style.setProperty("--vnm-fade-color", `rgb(${r},${g},${b})`);
+      } catch (e) {
+        // Canvas tainted or empty — fall back to dark default
+        vnmEl.style.setProperty("--vnm-fade-color", "#1a1a2e");
+      }
+    };
+    img.onerror = () => {
+      vnmEl.style.setProperty("--vnm-fade-color", "#1a1a2e");
+    };
+    img.src = imageSrc;
+  }
+
+  // --------------------------------------------------------------------------
   // SECTION 8: BACKGROUND
   // --------------------------------------------------------------------------
 
@@ -1905,6 +2270,7 @@
     if (src) {
       layer.style.backgroundImage = `url(${src})`;
       layer.style.backgroundColor = "";
+      if (layoutMode === "vnm") syncVnmFadeColor(src);
       return;
     }
 
@@ -1931,6 +2297,8 @@
       layer.style.backgroundImage = "";
       layer.style.backgroundColor = "#1a1a2e";
     }
+
+    if (layoutMode === "vnm") syncVnmFadeColor(null);
   }
 
   /**
@@ -2158,13 +2526,18 @@
   function getScrollEl() {
     return layoutMode === "fullscreen"
       ? document.getElementById("mode-fullscreen")
-      : document.getElementById("vn-text-panel");
+      : layoutMode === "vn"
+        ? document.getElementById("vn-text-panel")
+        : document.getElementById("vnm-text-panel");
   }
 
   function scrollToMessage(key) {
     // Find the first .msg-wrap with this key in the active stream
     const streamId = layoutMode === "fullscreen"
-      ? "fs-message-stream" : "vn-message-stream";
+      ? "fs-message-stream"
+      : layoutMode === "vn"
+        ? "vn-message-stream"
+        : "vnm-message-stream";
     const stream = document.getElementById(streamId);
     const el = stream.querySelector(`.msg-wrap[data-key="${CSS.escape(key)}"]`);
     if (!el) return;
@@ -2258,6 +2631,9 @@
 
     const savedSidebar = loadSetting("sidebarOpen");
     if (savedSidebar !== null) sidebarOpen = savedSidebar;
+
+    const savedFontScale = loadSetting("fontScale");
+    if (savedFontScale !== null) userFontScale = savedFontScale;
   }
 
   function saveBookmarks() {
@@ -2601,6 +2977,39 @@
   }
 
   // --------------------------------------------------------------------------
+  // SECTION 15c: FONT SIZE OVERRIDE
+  // --------------------------------------------------------------------------
+
+  /**
+   * Applies the current userFontScale to all rendered bubble bodies
+   * without a full re-render. Iterates all three streams so switching
+   * layout immediately reflects the scale.
+   */
+  function applyFontScale() {
+    document.querySelectorAll(".bubble-body").forEach(body => {
+      const wrap    = body.closest(".msg-wrap");
+      if (!wrap) return;
+      const key     = wrap.dataset.key;
+      if (!key || !project) return;
+      const style   = STSS.resolveStyle(project, key);
+      const rawSize = style.font_size || "1rem";
+      const baseRem = parseFloat(rawSize) || 1.0;
+      body.style.fontSize = (baseRem * userFontScale) + "rem";
+    });
+    saveSetting("fontScale", userFontScale);
+  }
+
+  /**
+   * Updates the slider and readout to reflect the current userFontScale.
+   */
+  function syncFontSizeUI() {
+    const slider  = document.getElementById("font-size-slider");
+    const readout = document.getElementById("font-size-value");
+    if (slider)  slider.value = userFontScale;
+    if (readout) readout.textContent = userFontScale.toFixed(2) + "×";
+  }
+
+  // --------------------------------------------------------------------------
   // SECTION 16: WIRE ALL BUTTONS
   // --------------------------------------------------------------------------
 
@@ -2649,6 +3058,19 @@
     // Layout buttons
     document.getElementById("btn-layout-fullscreen").addEventListener("click", () => setLayout("fullscreen"));
     document.getElementById("btn-layout-vn").addEventListener("click", () => setLayout("vn"));
+    document.getElementById("btn-layout-vnm").addEventListener("click", () => setLayout("vnm"));
+
+    // Font size slider
+    document.getElementById("font-size-slider").addEventListener("input", function() {
+      userFontScale = parseFloat(this.value);
+      document.getElementById("font-size-value").textContent = userFontScale.toFixed(2) + "×";
+      applyFontScale();
+    });
+    document.getElementById("font-size-reset").addEventListener("click", () => {
+      userFontScale = 1.0;
+      syncFontSizeUI();
+      applyFontScale();
+    });
 
     // Download
     document.getElementById("btn-download").addEventListener("click", downloadPayload);
@@ -2722,6 +3144,7 @@
     // Scroll listeners
     document.getElementById("mode-fullscreen").addEventListener("scroll", onScroll, { passive: true });
     document.getElementById("vn-text-panel").addEventListener("scroll", onScroll, { passive: true });
+    document.getElementById("vnm-text-panel").addEventListener("scroll", onScroll, { passive: true });
 
     // Search stories button (sidebar + drop zone)
     document.getElementById("btn-search-stories").addEventListener("click", openSearchOverlay);
@@ -2790,6 +3213,9 @@
       document.getElementById("volume-slider").value = savedVol;
       document.getElementById("audio-music").volume = savedVol;
     }
+
+    // Sync font size slider to saved/default value
+    syncFontSizeUI();
 
     // Render bookmark panel
     renderBookmarkPanel();
