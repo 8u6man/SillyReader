@@ -50,9 +50,9 @@ Both run entirely in your browser. No account, no server, no install.
 4. Optionally add character portraits, backgrounds, fonts, and music (untested) in the Styles panel
 5. Click **Export Payload JSON** — this gives you a `.json` file
 
-## *Additional Supported Export Types*
+*Additional Supported Export Types*
 
-Perchance AI-Character-Chat Thread Exports
+- Perchance AI-Character-Chat Thread Exports
 
 ### Step 2 — Host your payload somewhere
 
