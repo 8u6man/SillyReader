@@ -3,6 +3,8 @@
 The Editor is where you turn a raw SillyTavern chat export into a styled, readable story. This guide walks through everything you need to know to get from a `.jsonl` file to a finished payload.
 
 ---
+**Important:** If you read nothing else: Images are encoded as Base64 and embedded in the project payload. Please be considerate of others and compress your images before uploading them in the editor. JPG or WEBP are good choices.
+---
 
 ## The basics:
 
@@ -68,6 +70,8 @@ The message list supports flexible selection:
 
 Use the **Unassigned only** filter to quickly find messages you haven't placed yet.
 
+Selected messages can have presets or message authors applied in bulk.
+
 ---
 
 ## Hiding messages
@@ -87,6 +91,8 @@ Hidden messages appear faded in the Editor with their name struck through so you
 Each message row has a small **✎** edit zone on its right edge — it blends in a little, but hover over any message and you'll see it. Click it to open the preview panel, where you can read the full message text and edit it directly.
 
 Edits are saved back to the project (the **Save Edit** button activates when you've made changes) and marked with an "edited" badge on the message row. The original `.jsonl` file is never touched.
+
+Additionally there is a Find & Replace function that affects all messages simulataneosly.
 
 ---
 
