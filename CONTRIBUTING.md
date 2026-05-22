@@ -33,12 +33,14 @@ The file should look like this:
     {
       "title": "My Story Title",
       "url": "https://raw.githubusercontent.com/YOURUSERNAME/YOURREPO/main/stories/my_story.json",
-      "description": "A short description of your story. Optional but recommended."
+      "description": "A short description of your story. Optional but recommended.",
+      "tags": ["sfw","romance","slice of life"]
     },
     {
       "title": "Another Story",
       "url": "https://catbox.moe/yourfile.json",
-      "description": "Descriptions show up in search results."
+      "description": "Descriptions show up in search results.",
+      "tags": ["furry","18+","action"]
     }
   ]
 }
