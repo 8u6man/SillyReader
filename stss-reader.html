@@ -1068,6 +1068,48 @@
     .scroll-sentinel { height: 1px; }
 
     /* ================================================================
+       POPOUT LAYER
+       Sits above reader-root (z 1) but below float-controls (z 30)
+       and sidebar (z 20). Shows background + portrait full-bleed when
+       the popout button is active.
+    ================================================================ */
+    #popout-layer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none; /* never intercept clicks */
+    }
+    #popout-layer.active { display: block; }
+
+    /* Mirrors #bg-layer styling; bg is set dynamically via JS */
+    #popout-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    /* Portrait — centered, contained, fades in */
+    #popout-portrait {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #popout-portrait img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      object-position: center;
+      opacity: 0;
+      transition: opacity var(--t-portrait);
+    }
+    #popout-portrait img.visible { opacity: 1; }
+
+    /* ================================================================
        SEARCH OVERLAY
     ================================================================ */
     #search-overlay {
@@ -1409,6 +1451,12 @@
   <!-- Background layer -->
   <div id="bg-layer"></div>
 
+  <!-- Popout layer — sits above reader content but below all UI chrome -->
+  <div id="popout-layer">
+    <div id="popout-bg"></div>
+    <div id="popout-portrait"><img id="popout-portrait-img" src="" alt=""></div>
+  </div>
+
   <!-- Loading screen -->
   <div id="loading-screen">
     <div class="loading-app-name">Silly Reader</div>
@@ -1570,6 +1618,7 @@
   <div id="float-controls">
     <button class="fctl-btn" id="btn-sidebar-toggle" title="Toggle sidebar">☰</button>
     <button class="fctl-btn" id="btn-mute" title="Mute/unmute" style="display:none;">🔊</button>
+    <button class="fctl-btn" id="btn-popout" title="Popout background &amp; portrait">⛶</button>
     <div style="position:relative;">
       <button class="fctl-btn" id="btn-bookmark" title="Bookmarks">🔖</button>
       <div id="volume-panel" style="position:absolute;right:calc(var(--ctrl-size) + 0.5rem);top:0;">
@@ -2646,6 +2695,9 @@
 
   let bookmarkPanelOpen = false;
 
+  // Popout state
+  let popoutActive = false;
+
   function toggleBookmarkPanel(force) {
     bookmarkPanelOpen = force !== undefined ? force : !bookmarkPanelOpen;
     document.getElementById("bookmark-panel").classList.toggle("open", bookmarkPanelOpen);
@@ -3409,6 +3461,75 @@
   }
 
   // --------------------------------------------------------------------------
+  // SECTION 15d: POPOUT LAYER
+  // Surfaces the current background + portrait above the reader content
+  // without covering any UI chrome (sidebar z 20, float-controls z 30).
+  // --------------------------------------------------------------------------
+
+  /**
+   * Reads the current live state of #bg-layer and the active VN portrait,
+   * mirrors them into #popout-layer, and toggles visibility.
+   */
+  function togglePopout() {
+    popoutActive = !popoutActive;
+    const btn    = document.getElementById("btn-popout");
+    const layer  = document.getElementById("popout-layer");
+    const popBg  = document.getElementById("popout-bg");
+    const popImg = document.getElementById("popout-portrait-img");
+
+    btn.classList.toggle("active", popoutActive);
+
+    if (popoutActive) {
+      // Mirror background from the live bg-layer
+      const bgLayer = document.getElementById("bg-layer");
+      popBg.style.backgroundImage = bgLayer.style.backgroundImage || "";
+      popBg.style.backgroundColor = bgLayer.style.backgroundColor || "";
+
+      // Grab the currently visible portrait (works across all layout modes)
+      let portraitSrc = null;
+      if (layoutMode === "vn") {
+        // Whichever slot is currently visible
+        const a = document.getElementById("vn-portrait-a");
+        const b = document.getElementById("vn-portrait-b");
+        portraitSrc = (vnActiveSlot === "a" && !a.classList.contains("hidden"))
+          ? a.src
+          : (!b.classList.contains("hidden") ? b.src : null);
+      } else if (layoutMode === "vnm") {
+        const a = document.getElementById("vnm-portrait-a");
+        const b = document.getElementById("vnm-portrait-b");
+        portraitSrc = (vnmActiveSlot === "a" && !a.classList.contains("hidden"))
+          ? a.src
+          : (!b.classList.contains("hidden") ? b.src : null);
+      } else {
+        // Fullscreen — use the most recently resolved portrait from the project
+        portraitSrc = vnCurrentPortrait
+          ? STSS.resolveImage(project, vnCurrentPortrait)
+          : null;
+      }
+
+      if (portraitSrc && portraitSrc !== window.location.href) {
+        // window.location.href guard: empty src resolves to the page URL
+        popImg.src = portraitSrc;
+        popImg.classList.add("visible");
+      } else {
+        popImg.src = "";
+        popImg.classList.remove("visible");
+      }
+
+      layer.classList.add("active");
+    } else {
+      layer.classList.remove("active");
+      // Clean up after transition
+      setTimeout(() => {
+        if (!popoutActive) {
+          popImg.src = "";
+          popImg.classList.remove("visible");
+        }
+      }, 450);
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // SECTION 16: WIRE ALL BUTTONS
   // --------------------------------------------------------------------------
 
@@ -3445,6 +3566,12 @@
       }
       saveSetting("volume", vol);
       saveSetting("muted", isMuted);
+    });
+
+    // Popout button
+    document.getElementById("btn-popout").addEventListener("click", function(e) {
+      e.stopPropagation();
+      togglePopout();
     });
 
     // Bookmark button
@@ -3573,6 +3700,7 @@
           closeSearchOverlay();
           return;
         }
+        if (popoutActive) { togglePopout(); return; }
         closeCtxMenu();
         toggleBookmarkPanel(false);
         document.getElementById("volume-panel").classList.remove("open");
