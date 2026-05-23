@@ -1728,6 +1728,21 @@
               </div>
 
               <div class="style-field">
+                <label>Quote Color <span style="color:var(--text-muted);font-size:0.75em;">"…"</span></label>
+                <div id="color-picker-glob-quote"></div>
+              </div>
+
+              <div class="style-field">
+                <label>Single Quote Color <span style="color:var(--text-muted);font-size:0.75em;">'…'</span></label>
+                <div id="color-picker-glob-sq"></div>
+              </div>
+
+              <div class="style-field">
+                <label>Action Color <span style="color:var(--text-muted);font-size:0.75em;">*…*</span></label>
+                <div id="color-picker-glob-action"></div>
+              </div>
+
+              <div class="style-field">
                 <label>Bubble Background Color</label>
                 <div id="color-picker-glob-bubble-bg"></div>
               </div>
@@ -3340,9 +3355,12 @@
     // ==========================================================================
 
     // Color picker instances for globals panel
-    let globTextColorPicker    = null;
-    let globBgColorPicker      = null;
+    let globTextColorPicker     = null;
+    let globBgColorPicker       = null;
     let globBubbleBgColorPicker = null;
+    let globQuoteColorPicker    = null;
+    let globSqColorPicker       = null;
+    let globActionColorPicker   = null;
 
     /**
      * Initialises both globals color pickers. Called once at startup.
@@ -3381,6 +3399,30 @@
           }
           updateStylePreview();
         }
+      );
+
+      // Quote color picker
+      const quoteContainer = document.getElementById("color-picker-glob-quote");
+      globQuoteColorPicker = buildColorPicker(
+        quoteContainer,
+        null,
+        (hex) => { setGlobal("quote_color", hex || null); updateStylePreview(); }
+      );
+
+      // Single-quote color picker
+      const sqContainer = document.getElementById("color-picker-glob-sq");
+      globSqColorPicker = buildColorPicker(
+        sqContainer,
+        null,
+        (hex) => { setGlobal("sq_color", hex || null); updateStylePreview(); }
+      );
+
+      // Action color picker
+      const actionContainer = document.getElementById("color-picker-glob-action");
+      globActionColorPicker = buildColorPicker(
+        actionContainer,
+        null,
+        (hex) => { setGlobal("action_color", hex || null); updateStylePreview(); }
       );
 
       // Bubble background color picker
@@ -3424,6 +3466,9 @@
 
       // Color pickers
       if (globTextColorPicker) globTextColorPicker.setValue(g.text_color || "");
+      if (globQuoteColorPicker)  globQuoteColorPicker.setValue(g.quote_color  || "");
+      if (globSqColorPicker)     globSqColorPicker.setValue(g.sq_color     || "");
+      if (globActionColorPicker) globActionColorPicker.setValue(g.action_color || "");
 
       // Try to extract a hex color from background_css for the bg picker
       if (globBgColorPicker) {
@@ -3505,6 +3550,9 @@
           project.characters[name] = {
             portrait:          null,
             text_color:        null,
+            quote_color:       null,
+            sq_color:          null,
+            action_color:      null,
             text_shadow:       null,
             font_family:       null,
             bubble_bg_color:   null,
@@ -3596,6 +3644,45 @@
         (hex) => { setChar(name, "text_color", hex || null); }
       );
 
+      // Quote color picker
+      const quoteColorLabel = document.createElement("div");
+      quoteColorLabel.className = "style-field";
+      quoteColorLabel.innerHTML = '<label>Quote Color <span style="color:var(--text-muted);font-size:0.75em;">"…"</span></label>';
+      const quoteColorContainer = document.createElement("div");
+      quoteColorLabel.appendChild(quoteColorContainer);
+      body.appendChild(quoteColorLabel);
+      buildColorPicker(
+        quoteColorContainer,
+        char.quote_color || "",
+        (hex) => { setChar(name, "quote_color", hex || null); }
+      );
+
+      // Single-quote color picker
+      const sqColorLabel = document.createElement("div");
+      sqColorLabel.className = "style-field";
+      sqColorLabel.innerHTML = '<label>Single Quote Color <span style="color:var(--text-muted);font-size:0.75em;">\'…\'</span></label>';
+      const sqColorContainer = document.createElement("div");
+      sqColorLabel.appendChild(sqColorContainer);
+      body.appendChild(sqColorLabel);
+      buildColorPicker(
+        sqColorContainer,
+        char.sq_color || "",
+        (hex) => { setChar(name, "sq_color", hex || null); }
+      );
+
+      // Action color picker
+      const actionColorLabel = document.createElement("div");
+      actionColorLabel.className = "style-field";
+      actionColorLabel.innerHTML = '<label>Action Color <span style="color:var(--text-muted);font-size:0.75em;">*…*</span></label>';
+      const actionColorContainer = document.createElement("div");
+      actionColorLabel.appendChild(actionColorContainer);
+      body.appendChild(actionColorLabel);
+      buildColorPicker(
+        actionColorContainer,
+        char.action_color || "",
+        (hex) => { setChar(name, "action_color", hex || null); }
+      );
+
       // Text shadow
       body.appendChild(buildTextField(
         "Text Shadow", char.text_shadow || "",
@@ -3655,6 +3742,7 @@
           () => {
             project.characters[name] = {
               portrait: null, text_color: null, text_shadow: null,
+              quote_color: null, sq_color: null, action_color: null,
               font_family: null, bubble_bg_color: null, bubble_bg_opacity: null,
               bubble_css: null, theme_url: null,
             };
@@ -3880,6 +3968,185 @@
     }
 
     /**
+     * Converts raw message text to HTML for the style preview bubble.
+     * Matches the reader's rendering pipeline:
+     *   1. Paragraphs split on blank lines, first line of each indented.
+     *   2. Stack-based scanner colorizes "…", '…', and *…* spans per line,
+     *      using resolved quote_color / sq_color / action_color from the style.
+     *      Asterisk delimiters are consumed; content becomes italic + colored.
+     *      Single quotes only open if a closer exists ≥2 chars ahead.
+     *   3. Bold (**text**) pass runs after the scanner.
+     *
+     * @param {string} text   - Raw message text (msg.mes)
+     * @param {object} style  - Resolved style object from STSS.resolveStyle()
+     * @returns {string}      - Safe HTML string
+     */
+    function renderMarkdown(text, style) {
+      if (!text) return "";
+
+      // Pull color values — fall back to text_color then a neutral default
+      const baseColor   = style.text_color   || null;
+      const quoteColor  = style.quote_color  || baseColor;
+      const sqColor     = style.sq_color     || baseColor;
+      const actionColor = style.action_color || baseColor;
+
+      // ---- Helpers ----
+
+      function escMd(s) {
+        return s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      // Wrap text in a colored span (only if color is non-null)
+      function colorSpan(content, color, italic) {
+        const styles = [];
+        if (color)  styles.push(`color:${color}`);
+        if (italic) styles.push("font-style:italic");
+        return styles.length
+          ? `<span style="${styles.join(";")}">${content}</span>`
+          : content;
+      }
+
+      /**
+       * Stack-based scanner. Processes one line of text.
+       * Returns an HTML string with colored spans for quote/sq/action ranges.
+       * Asterisk delimiters are consumed; quote/sq delimiters are kept visible.
+       *
+       * Stack entries: { delim: '"' | "'" | '*', color: string|null }
+       * Max depth 3 (matches reader behaviour).
+       */
+      function scanLine(line) {
+        const DELIMS = new Set(['"', "'", '*']);
+        const stack  = [];  // { delim, color, italic }
+        let out      = "";
+        let i        = 0;
+        const len    = line.length;
+
+        // Current rendering color — null means base (no span needed)
+        function topColor()  { return stack.length ? stack[stack.length - 1].color  : null; }
+        function topItalic() { return stack.length ? stack[stack.length - 1].italic : false; }
+
+        // Emit a plain character under the current color context
+        function emit(ch) {
+          out += colorSpan(escMd(ch), topColor(), topItalic());
+        }
+
+        while (i < len) {
+          const ch = line[i];
+
+          // ---- Bold: ** consumed as a unit, wraps content in <strong> ----
+          if (ch === '*' && line[i + 1] === '*') {
+            const closeIdx = line.indexOf('**', i + 2);
+            if (closeIdx !== -1) {
+              const inner = escMd(line.slice(i + 2, closeIdx));
+              out += colorSpan(`<strong>${inner}</strong>`, topColor(), topItalic());
+              i = closeIdx + 2;
+              continue;
+            }
+            // No closing ** found — fall through and treat first * as action
+          }
+
+          if (!DELIMS.has(ch)) {
+            emit(ch);
+            i++;
+            continue;
+          }
+
+          // Determine what this delimiter does
+          const topDelim = stack.length ? stack[stack.length - 1].delim : null;
+
+          // Single-quote guard: skip span logic in two cases —
+          //   1. Contraction: letter immediately before AND after (e.g. don't, it's)
+          //   2. No closer found ≥2 chars ahead on this line
+          if (ch === "'" && topDelim !== "'") {
+            const prevIsLetter = i > 0 && /[a-zA-Z]/.test(line[i - 1]);
+            const nextIsLetter = i + 1 < len && /[a-zA-Z]/.test(line[i + 1]);
+            if (prevIsLetter && nextIsLetter) {
+              // Apostrophe in a contraction — emit as plain text
+              emit(ch);
+              i++;
+              continue;
+            }
+            let hasCloser = false;
+            for (let j = i + 2; j < len; j++) {
+              if (line[j] === "'") { hasCloser = true; break; }
+            }
+            if (!hasCloser) {
+              // No matching closer — emit as plain text
+              emit(ch);
+              i++;
+              continue;
+            }
+          }
+
+          if (ch === topDelim) {
+            // Closing the current context — capture color before popping
+            const closedColor  = stack[stack.length - 1].color;
+            const closedItalic = stack[stack.length - 1].italic;
+            stack.pop();
+            // Asterisk: delimiter is invisible (consumed); emit nothing for it
+            // Quotes: delimiter is visible, emit it in the *closing* span's color
+            if (ch !== '*') {
+              out += colorSpan(escMd(ch), closedColor, closedItalic);
+            }
+          } else if (stack.length < 3) {
+            // Opening a new context (or pushing nested)
+            let newColor, italic;
+            if (ch === '"')  { newColor = quoteColor;  italic = false; }
+            else if (ch === "'") { newColor = sqColor; italic = false; }
+            else              { newColor = actionColor; italic = true; }
+
+            stack.push({ delim: ch, color: newColor, italic });
+
+            // Quotes: emit the opening delimiter in the new color
+            if (ch !== '*') {
+              out += colorSpan(escMd(ch), newColor, false);
+            }
+          } else {
+            // Stack full — treat as plain character
+            emit(ch);
+          }
+
+          i++;
+        }
+
+        return out;
+      }
+
+      /**
+       * Applies **bold** markdown to an already-HTML-escaped/scanned string.
+       * Only handles **text** (double asterisks); single * is consumed by the
+       * stack scanner. Kept as a fallback but bold is now handled in scanLine.
+       */
+      function applyBold(html) {
+        return html.replace(/\*\*([\s\S]*?)\*\*/g, "<strong>$1</strong>");
+      }
+
+      // ---- Main render pass ----
+
+      // Split into paragraph blocks on blank lines
+      const blocks = text.split(/\n{2,}/);
+      const paraHtmlParts = blocks.map(block => {
+        // Within a block, each newline is a soft line break
+        const lines = block.split("\n");
+        const lineHtmlParts = lines.map((line, idx) => {
+          let html = scanLine(line);
+          html = applyBold(html);
+          // First line of each paragraph gets a text-indent (em-space × 2)
+          if (idx === 0 && line.trim().length > 0) {
+            html = `<span style="display:inline-block;width:2em"></span>` + html;
+          }
+          return html;
+        });
+        return `<p style="margin:0 0 0.6em">${lineHtmlParts.join("<br>")}</p>`;
+      });
+
+      return paraHtmlParts.join("");
+    }
+
+    /**
      * Renders the current preview message with fully resolved styles.
      * Called any time a style value changes or the preview index changes.
      */
@@ -3973,8 +4240,10 @@
       speakerEl.textContent  = msg.name;
       speakerEl.style.color  = style.text_color || "#e0e0e0";
 
-      // Message text
-      bubble.textContent = msg.mes || "(empty message)";
+      // Message text — rendered with markdown and quote/action coloring
+      bubble.innerHTML = msg.mes
+        ? renderMarkdown(msg.mes, style)
+        : "<em style='opacity:0.4'>(empty message)</em>";
 
       // If the Message accordion is visible, refresh it to match the new message
       const msgAccord = document.getElementById("accord-messages");
@@ -4115,6 +4384,54 @@
                    tcWrap.classList.toggle("has-override", !!hex); }
       );
       fields.appendChild(tcWrap);
+
+      // ---- Quote color ----
+      const qcWrap = document.createElement("div");
+      qcWrap.className = "style-field";
+      if (msg.quote_color) qcWrap.classList.add("has-override");
+      const qcLabel = document.createElement("label");
+      qcLabel.innerHTML = 'Quote Color <span style="color:var(--text-muted);font-size:0.75em;">"…"</span>';
+      qcWrap.appendChild(qcLabel);
+      const qcContainer = document.createElement("div");
+      qcWrap.appendChild(qcContainer);
+      buildColorPicker(
+        qcContainer, msg.quote_color || "",
+        (hex) => { setMsgOverride(key, "quote_color", hex || null);
+                   qcWrap.classList.toggle("has-override", !!hex); }
+      );
+      fields.appendChild(qcWrap);
+
+      // ---- Single-quote color ----
+      const sqWrap = document.createElement("div");
+      sqWrap.className = "style-field";
+      if (msg.sq_color) sqWrap.classList.add("has-override");
+      const sqLabel = document.createElement("label");
+      sqLabel.innerHTML = "Single Quote Color <span style=\"color:var(--text-muted);font-size:0.75em;\">'…'</span>";
+      sqWrap.appendChild(sqLabel);
+      const sqContainer = document.createElement("div");
+      sqWrap.appendChild(sqContainer);
+      buildColorPicker(
+        sqContainer, msg.sq_color || "",
+        (hex) => { setMsgOverride(key, "sq_color", hex || null);
+                   sqWrap.classList.toggle("has-override", !!hex); }
+      );
+      fields.appendChild(sqWrap);
+
+      // ---- Action color ----
+      const acWrap = document.createElement("div");
+      acWrap.className = "style-field";
+      if (msg.action_color) acWrap.classList.add("has-override");
+      const acLabel = document.createElement("label");
+      acLabel.innerHTML = 'Action Color <span style="color:var(--text-muted);font-size:0.75em;">*…*</span>';
+      acWrap.appendChild(acLabel);
+      const acContainer = document.createElement("div");
+      acWrap.appendChild(acContainer);
+      buildColorPicker(
+        acContainer, msg.action_color || "",
+        (hex) => { setMsgOverride(key, "action_color", hex || null);
+                   acWrap.classList.toggle("has-override", !!hex); }
+      );
+      fields.appendChild(acWrap);
 
       // ---- Text shadow ----
       const tsWrap = buildTextField(

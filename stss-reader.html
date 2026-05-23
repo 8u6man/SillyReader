@@ -2088,17 +2088,8 @@
       body.setAttribute("style", body.getAttribute("style") + ";" + style.bubble_css);
     }
 
-    // Message text — split on double newlines for paragraphs, render markdown within each
-    const paragraphs = (msg.mes || "").split(/\r?\n\r?\n/).filter(s => s.trim());
-    if (paragraphs.length <= 1) {
-      body.innerHTML = renderMarkdown(msg.mes || "");
-    } else {
-      for (const para of paragraphs) {
-        const p = document.createElement("p");
-        p.innerHTML = renderMarkdown(para);
-        body.appendChild(p);
-      }
-    }
+    // Message text — renderMarkdown owns paragraph splitting, indent, and all inline rendering
+    body.innerHTML = renderMarkdown(msg.mes || "", style);
 
     wrap.appendChild(body);
 
@@ -2843,53 +2834,179 @@
   /**
    * Renders a subset of Markdown to HTML.
    * Input is PLAIN TEXT (not yet HTML-escaped).
-   * Handles: ***bold italic***, **bold**, *italic*, __bold__, _italic_,
-   *          ~~strikethrough~~, `inline code`, > blockquote lines.
-   * Single newlines become <br>. Does NOT handle headers, lists, or block code.
    *
-   * Order matters: escape HTML first so we don't mangle user text,
-   * then apply patterns to the escaped string.
+   * Paragraph handling:
+   *   - Split on \n\n+ for paragraph blocks; each block becomes a <p>
+   *   - Within a block, \n → <br>
+   *   - First line of each paragraph gets a 2em indent spacer
+   *
+   * Inline rendering — stack-based scanner (runs on RAW text, escapes per-char):
+   *   - Colorizes "…" (quote_color), '…' (sq_color), *…* (action_color)
+   *   - Falls back to text_color, then no color
+   *   - ** consumed as a unit inside scanner → <strong>; single * → action color+italic
+   *   - Asterisk delimiters invisible; quote delimiters stay visible
+   *   - Single-quote guard: contraction check first, then look-ahead
+   *   - ~~strikethrough~~, `code`, __bold__, _italic_ handled by regex after scanner
+   *   - Blockquote lines ("> ") wrapped in .md-blockquote span
    */
-  function renderMarkdown(text) {
+  function renderMarkdown(text, style) {
     if (!text) return "";
 
-    // Step 1 — split into lines so we can handle blockquotes line by line,
-    // then rejoin. We process inline markdown per-line.
-    const lines = text.split(/\r?\n/);
-    const processed = lines.map(line => {
-      // Escape HTML first so user's < > & are safe
-      let s = escapeHtml(line);
+    // Resolve highlight colors — fall back to text_color if not set
+    const baseColor   = style && style.text_color   ? style.text_color   : null;
+    const quoteColor  = style && style.quote_color  ? style.quote_color  : baseColor;
+    const sqColor     = style && style.sq_color     ? style.sq_color     : baseColor;
+    const actionColor = style && style.action_color ? style.action_color : baseColor;
 
-      // Blockquote: lines starting with "> "
-      if (/^&gt;\s?/.test(s)) {
-        s = '<span class="md-blockquote">' + s.replace(/^&gt;\s?/, "") + "</span>";
-        return s;
+    // Escape a single raw character for HTML
+    function escCh(ch) {
+      if (ch === "&") return "&amp;";
+      if (ch === "<") return "&lt;";
+      if (ch === ">") return "&gt;";
+      return ch;
+    }
+
+    // Wrap content in a styled span only if there's something to apply
+    function colorSpan(content, color, italic) {
+      const styles = [];
+      if (color)  styles.push(`color:${color}`);
+      if (italic) styles.push("font-style:italic");
+      return styles.length
+        ? `<span style="${styles.join(";")}">${content}</span>`
+        : content;
+    }
+
+    /**
+     * Stack-based scanner. Operates on raw (unescaped) line text.
+     * Escapes HTML per-character so delimiter matching works on the original chars.
+     *
+     * Stack entries: { delim, color, italic }
+     * Max depth 3.
+     */
+    function scanLine(line) {
+      const DELIMS = new Set(['"', "'", "*"]);
+      const stack  = [];
+      let out      = "";
+      let i        = 0;
+      const len    = line.length;
+
+      function topColor()  { return stack.length ? stack[stack.length - 1].color  : null; }
+      function topItalic() { return stack.length ? stack[stack.length - 1].italic : false; }
+
+      // Emit a plain character under the current color context
+      function emit(ch) {
+        out += colorSpan(escCh(ch), topColor(), topItalic());
       }
 
-      // Bold italic (must come before bold and italic individually)
-      s = s.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
-      s = s.replace(/___(.+?)___/g,        "<strong><em>$1</em></strong>");
+      while (i < len) {
+        const ch = line[i];
 
-      // Bold
-      s = s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-      s = s.replace(/__(.+?)__/g,      "<strong>$1</strong>");
+        // Bold: ** consumed as a unit, wraps content in <strong>
+        if (ch === "*" && line[i + 1] === "*") {
+          const closeIdx = line.indexOf("**", i + 2);
+          if (closeIdx !== -1) {
+            const inner = line.slice(i + 2, closeIdx)
+              .split("").map(c => colorSpan(escCh(c), topColor(), topItalic())).join("");
+            out += colorSpan(`<strong>${inner}</strong>`, topColor(), topItalic());
+            i = closeIdx + 2;
+            continue;
+          }
+          // No closing ** — fall through, treat first * as action delimiter
+        }
 
-      // Italic — * and _ variants.
-      // Use a negative lookbehind/ahead to avoid matching inside words for _
-      s = s.replace(/\*(.*?)\*/g, "<em>$1</em>");
+        if (!DELIMS.has(ch)) {
+          emit(ch);
+          i++;
+          continue;
+        }
+
+        const topDelim = stack.length ? stack[stack.length - 1].delim : null;
+
+        // Single-quote guard
+        if (ch === "'" && topDelim !== "'") {
+          const prevIsLetter = i > 0         && /[a-zA-Z]/.test(line[i - 1]);
+          const nextIsLetter = i + 1 < len   && /[a-zA-Z]/.test(line[i + 1]);
+          if (prevIsLetter && nextIsLetter) { emit(ch); i++; continue; } // contraction
+
+          let hasCloser = false;
+          for (let j = i + 2; j < len; j++) {
+            if (line[j] === "'") { hasCloser = true; break; }
+          }
+          if (!hasCloser) { emit(ch); i++; continue; } // no closer ahead
+        }
+
+        if (ch === topDelim) {
+          // Closing the current context — capture color before popping
+          const closedColor  = stack[stack.length - 1].color;
+          const closedItalic = stack[stack.length - 1].italic;
+          stack.pop();
+          // Quotes: emit closing delimiter in the *closing* span's color; asterisk: invisible
+          if (ch !== "*") {
+            out += colorSpan(escCh(ch), closedColor, closedItalic);
+          }
+        } else if (stack.length < 3) {
+          // Opening a new context
+          let newColor, italic;
+          if      (ch === '"')  { newColor = quoteColor;  italic = false; }
+          else if (ch === "'")  { newColor = sqColor;     italic = false; }
+          else                  { newColor = actionColor; italic = true;  }
+
+          stack.push({ delim: ch, color: newColor, italic });
+
+          // Quotes: emit opening delimiter in the new color; asterisk: invisible
+          if (ch !== "*") {
+            out += colorSpan(escCh(ch), newColor, false);
+          }
+        } else {
+          // Stack full — plain character
+          emit(ch);
+        }
+
+        i++;
+      }
+
+      return out;
+    }
+
+    /**
+     * Renders one raw line: blockquote check, scanner, then regex passes for
+     * remaining markdown (~~strike~~, `code`, __bold__, _italic_).
+     */
+    function renderLine(line, isFirstInBlock) {
+      // Blockquote
+      if (/^\s*>\s?/.test(line)) {
+        const inner = line.replace(/^\s*>\s?/, "");
+        return '<span class="md-blockquote">' + scanLine(inner) + "</span>";
+      }
+
+      let s = scanLine(line);
+
+      // Remaining markdown — operate on the HTML string output by scanLine.
+      // These patterns don't conflict with color spans since ** was already
+      // consumed and * is gone (converted to action spans or invisible).
+      s = s.replace(/~~(.*?)~~/g, "<del>$1</del>");
+      s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+      s = s.replace(/__(.+?)__/g, "<strong>$1</strong>");
       s = s.replace(/(?<!\w)_(.+?)_(?!\w)/g, "<em>$1</em>");
 
-      // Strikethrough
-      s = s.replace(/~~(.*?)~~/g, "<del>$1</del>");
-
-      // Inline code — preserve content literally (already escaped above)
-      s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+      // Text indent: inline-block spacer on first line of each paragraph
+      if (isFirstInBlock && line.trim().length > 0) {
+        s = `<span style="display:inline-block;width:2em"></span>` + s;
+      }
 
       return s;
+    }
+
+    // Split into paragraph blocks on blank lines
+    const blocks = text.split(/\r?\n(?:\r?\n)+/);
+
+    const htmlBlocks = blocks.map(block => {
+      const lines = block.split(/\r?\n/);
+      const lineHtml = lines.map((line, idx) => renderLine(line, idx === 0));
+      return `<p style="margin:0 0 0.6em">${lineHtml.join("<br>")}</p>`;
     });
 
-    // Rejoin with <br> for single newlines
-    return processed.join("<br>");
+    return htmlBlocks.join("");
   }
 
   // --------------------------------------------------------------------------

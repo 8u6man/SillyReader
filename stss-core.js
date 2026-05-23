@@ -50,6 +50,9 @@ function createProject(title = "Untitled Story") {
       bubble_bg_opacity: "0.45",
       bubble_css:        null,
       music_url:         null,
+      quote_color:       null,
+      sq_color:          null,
+      action_color:      null,
     },
 
     // Per-character style overrides. Key = character name string.
@@ -126,6 +129,9 @@ function createMessage(raw, index) {
     bubble_css:        null,
     music_url:         null,
     sting_url:         null,
+    quote_color:       null,
+    sq_color:          null,
+    action_color:      null,
   };
 }
 
@@ -145,6 +151,9 @@ function createCharacter() {
     bubble_bg_opacity: null,
     bubble_css:        null,
     theme_url:         null,
+    quote_color:       null,
+    sq_color:          null,
+    action_color:      null,
   };
 }
 
@@ -573,6 +582,9 @@ const INHERITABLE_FIELDS = [
   "bubble_css",
   "music_url",
   "sting_url",
+  "quote_color",
+  "sq_color",
+  "action_color",
 ];
 
 /**
@@ -627,6 +639,7 @@ const PRESET_FIELDS = [
   "text_color", "text_shadow",
   "bubble_bg_color", "bubble_bg_opacity", "bubble_css",
   "music_url", "sting_url",
+  "quote_color", "sq_color", "action_color",
 ];
 
 /**
