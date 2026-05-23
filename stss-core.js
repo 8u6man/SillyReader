@@ -110,6 +110,7 @@ function createMessage(raw, index) {
     mes:           raw.mes       || "",
     model:         (raw.extra && raw.extra.model) ? raw.extra.model : null,
     source_avatar: raw.force_avatar || null,
+    source_name:   raw.name      || "Unknown",
 
     // --- Edit / visibility tracking ---
     edited: false,
@@ -361,7 +362,7 @@ function importMessages(project, rawMessages) {
 
     if (existing !== undefined) {
       // Collision: check if it's a different speaker — if so, admit it
-      if (existing.name !== (raw.name || "Unknown")) {
+      if ((existing.source_name || existing.name) !== (raw.name || "Unknown")) {
         const altKey = key + "_" + (raw.name || "Unknown");
         if (project.messages[altKey] === undefined) {
           project.messages[altKey] = createMessage(raw, nextIndex);
