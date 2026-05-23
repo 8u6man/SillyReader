@@ -268,9 +268,11 @@ function migrateImageFields(project) {
 /**
  * Parses the raw text of a .jsonl file.
  * Returns the metadata header separately from the message array.
+ * Also detects whether this is a Chub Venus export (identified by a header
+ * line containing user_name + character_name but no chat_metadata).
  *
  * @param {string} text
- * @returns {{ chatMeta: object|null, messages: object[] }}
+ * @returns {{ chatMeta: object|null, messages: object[], isChub: boolean }}
  */
 function parseJsonl(text) {
   const lines = text
@@ -279,6 +281,7 @@ function parseJsonl(text) {
     .filter(l => l.length > 0);
 
   let chatMeta = null;
+  let isChub   = false;
   const messages = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -295,15 +298,30 @@ function parseJsonl(text) {
       continue;
     }
 
+    // Chub Venus header: first line has user_name + character_name, no send_date
+    if (i === 0 && parsed.user_name !== undefined && parsed.character_name !== undefined
+        && parsed.send_date === undefined) {
+      isChub   = true;
+      chatMeta = parsed;
+      continue;
+    }
+
     messages.push(parsed);
   }
 
-  return { chatMeta, messages };
+  return { chatMeta, messages, isChub };
 }
 
 /**
  * Imports parsed JSONL messages into an existing project.
  * Applies diff-check: existing send_date keys are skipped to preserve edits.
+ *
+ * When a timestamp collision occurs, the incoming message's name is checked
+ * against the existing entry — if the names differ it's a genuinely different
+ * message and is admitted with a composite key; if they match it's a true
+ * duplicate and is skipped. This handles Chub Venus exports (which reuse
+ * timestamps across characters) as well as ST setups that truncate timestamps
+ * to minute precision.
  *
  * @param {object}   project     - Mutated in place
  * @param {object[]} rawMessages - From parseJsonl()
@@ -329,10 +347,23 @@ function importMessages(project, rawMessages) {
       continue;
     }
 
-    const key = raw.send_date;
+    const key      = String(raw.send_date);
+    const existing = project.messages[key];
 
-    if (project.messages[key] !== undefined) {
-      skipped++;
+    if (existing !== undefined) {
+      // Collision: check if it's a different speaker — if so, admit it
+      if (existing.name !== (raw.name || "Unknown")) {
+        const altKey = key + "_" + (raw.name || "Unknown");
+        if (project.messages[altKey] === undefined) {
+          project.messages[altKey] = createMessage(raw, nextIndex);
+          nextIndex++;
+          added++;
+        } else {
+          skipped++;
+        }
+      } else {
+        skipped++;
+      }
       continue;
     }
 
@@ -350,12 +381,12 @@ function importMessages(project, rawMessages) {
  *
  * @param {string} jsonlText
  * @param {object} project
- * @returns {{ chatMeta: object, added: number, skipped: number }}
+ * @returns {{ chatMeta: object, added: number, skipped: number, isChub: boolean }}
  */
 function ingestJsonl(jsonlText, project) {
-  const { chatMeta, messages } = parseJsonl(jsonlText);
-  const { added, skipped }     = importMessages(project, messages);
-  return { chatMeta, added, skipped };
+  const { chatMeta, messages, isChub } = parseJsonl(jsonlText);
+  const { added, skipped }             = importMessages(project, messages);
+  return { chatMeta, added, skipped, isChub };
 }
 
 // ---------------------------------------------------------------------------

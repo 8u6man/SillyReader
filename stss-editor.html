@@ -2172,6 +2172,7 @@
             formatLabel = "AICC";
           } else {
             result = STSS.ingestJsonl(text, project);
+            if (result.isChub) formatLabel = "Chub";
           }
 
           const { added, skipped } = result;
