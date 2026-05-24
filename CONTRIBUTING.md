@@ -50,6 +50,10 @@ In your fork, go into the `indices/` folder and create a new file named `YourNam
 
 ### Step 3 — Add yourself to the masterlist
 
+*(I've created a handy json generator that helps smooth out the process below)*
+
+https://8u6man.github.io/SillyReader/Submission_Form_Generator.html
+
 In your fork, open `masterlist.json` and add one entry to the `indices` array pointing to your new index file:
 
 ```json

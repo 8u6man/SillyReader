@@ -25,6 +25,12 @@ Drag your `.jsonl` file onto the **Import .jsonl** zone in the left sidebar, or 
 
 **You can re-import the same chat later.** If you've continued a roleplay after your first import, just drag the updated `.jsonl` in again. The Editor checks each message by its timestamp and only adds new ones — nothing gets duplicated, and your existing structure and style work is preserved.
 
+*(Additional Supported Formats)*
+
+- Lumiverse `.json`
+- Perchance ACC `.json`
+- Chub Venus `.jsonl`
+
 ---
 
 ## The Structure panel

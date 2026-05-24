@@ -562,6 +562,92 @@ function ingestAicc(jsonText, project) {
 }
 
 // ---------------------------------------------------------------------------
+// SECTION 3C: LUMIVERSE PARSER
+// Handles JSON exports from Lumiverse.
+// Format: { chat: { ... }, messages: [ { id, name, content, is_user, ... } ] }
+// The message UUID ("id") is used as the unique dict key.
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects whether a parsed JSON object looks like a Lumiverse export.
+ *
+ * @param {object} root
+ * @returns {boolean}
+ */
+function isLumiverseExport(root) {
+  return (
+    root &&
+    root.chat &&
+    typeof root.chat === "object" &&
+    Array.isArray(root.messages)
+  );
+}
+
+/**
+ * Parses a Lumiverse JSON export object into a normalised message list
+ * compatible with importMessages().
+ *
+ * Each message carries a synthetic send_date equal to its UUID "id" so that
+ * importMessages() can use it as the unique dict key without collisions.
+ *
+ * @param {object} root - Parsed Lumiverse JSON root object
+ * @returns {{ chatMeta: object, messages: object[] }}
+ */
+function parseLumiverse(root) {
+  const messages = [];
+
+  for (const row of root.messages) {
+    if (!row.id) {
+      console.warn("stss-core (Lumiverse): message missing id, skipping:", row);
+      continue;
+    }
+
+    messages.push({
+      send_date:    row.id,
+      name:         row.name  || "Unknown",
+      is_user:      row.is_user === true,
+      is_system:    false,
+      mes:          row.content || "",
+      extra:        {},
+      force_avatar: null,
+    });
+  }
+
+  const chatMeta = {
+    source:   "lumiverse",
+    chatName: (root.chat && root.chat.name) || "Imported Chat",
+    chatId:   (root.chat && root.chat.id)   || null,
+  };
+
+  return { chatMeta, messages };
+}
+
+/**
+ * Convenience: parse + import a Lumiverse export in one call.
+ * Mirrors the signature of ingestJsonl() for drop-in use in the editor.
+ *
+ * @param {string} jsonText  - Raw file text
+ * @param {object} project   - Mutated in place
+ * @returns {{ chatMeta: object, added: number, skipped: number }}
+ */
+function ingestLumiverse(jsonText, project) {
+  let root;
+  try {
+    root = JSON.parse(jsonText);
+  } catch (e) {
+    throw new Error("Lumiverse import: invalid JSON — " + e.message);
+  }
+
+  if (!isLumiverseExport(root)) {
+    throw new Error("Lumiverse import: file does not look like a Lumiverse export.");
+  }
+
+  const { chatMeta, messages } = parseLumiverse(root);
+  const { added, skipped }     = importMessages(project, messages);
+  return { chatMeta, added, skipped };
+}
+
+// ---------------------------------------------------------------------------
 // SECTION 4: STYLE RESOLVER
 // Global > Character > Message inheritance chain.
 // ---------------------------------------------------------------------------
@@ -861,6 +947,9 @@ if (typeof window !== "undefined") {
     parseAicc,
     isAiccExport,
     ingestAicc,
+    parseLumiverse,
+    isLumiverseExport,
+    ingestLumiverse,
     // Style resolution
     resolveStyle,
     INHERITABLE_FIELDS,
@@ -888,6 +977,7 @@ if (typeof module !== "undefined" && module.exports) {
     djb2Hash, registerImage, resolveImage, migrateImageFields,
     parseJsonl, importMessages, ingestJsonl,
     parseAicc, isAiccExport, ingestAicc,
+    parseLumiverse, isLumiverseExport, ingestLumiverse,
     resolveStyle, INHERITABLE_FIELDS,
     createPreset, applyPreset, deletePreset, PRESET_FIELDS,
     findNodeById, getFlatMessageOrder, isLeafNode,

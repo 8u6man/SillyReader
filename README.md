@@ -52,7 +52,9 @@ Both run entirely in your browser. No account, no server, no install.
 
 *Additional Supported Export Types*
 
-- Perchance AI-Character-Chat Thread Exports
+- Lumiverse `.json`
+- Perchance ACC `.json`
+- Chub Venus `.jsonl`
 
 ### Step 2 — Host your payload somewhere
 
