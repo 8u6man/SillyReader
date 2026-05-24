@@ -5,7 +5,7 @@
     "author": "Wren",
     "description": "In a post-plague city ruled by an oppressive Church that treats desire as a sin, faithless Sister Eliza survives by performing a piety she doesn't feel. Her double life unravels when she falls for a forbidden dragon-kin leader and joins a hidden faction fighting for self-truth. As the Church escalates a genocidal propaganda campaign, Eliza must abandon her invisibility to protect her love and wage a quiet war for salvation. (CW: Suicidal Ideation, Rape / SA, Religious Trauma, Graphic Sex and Nudity)",
     "created": "2026-05-20T19:57:42.513Z",
-    "modified": "2026-05-22T20:36:37.148Z"
+    "modified": "2026-05-24T16:44:08.380Z"
   },
   "globals": {
     "background": "f29b9880",
@@ -28,7 +28,9 @@
       "bubble_bg_color": "#062c32",
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "quote_color": "#dde8f0",
+      "action_color": "#ff9b8a"
     },
     "Eamon": {
       "portrait": "0fb3acab",
@@ -38,7 +40,9 @@
       "bubble_bg_color": "#2d3b49",
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "quote_color": "#b6d6f7",
+      "action_color": "#84db8a"
     },
     "Eliza": {
       "portrait": "e14de195",
@@ -48,7 +52,10 @@
       "bubble_bg_color": "#0b0217",
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "action_color": "#c8b8e8",
+      "quote_color": "#a8c8e8",
+      "sq_color": "#c8bfb0"
     },
     "Father Gaspard": {
       "portrait": "28add263",
@@ -58,17 +65,21 @@
       "bubble_bg_color": "#200404",
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "quote_color": "#bfa8d6",
+      "action_color": "#db7b90"
     },
     "High Inquisitor Justinian": {
       "portrait": "b93cc05f",
-      "text_color": "#f5f0e8",
+      "text_color": "#ffe2b8",
       "text_shadow": null,
       "font_family": null,
       "bubble_bg_color": "#775d37",
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "quote_color": "#ffd08a",
+      "action_color": "#c9fba7"
     },
     "Narrator": {
       "portrait": "a9164ebe",
@@ -78,7 +89,9 @@
       "bubble_bg_color": null,
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "quote_color": "#c8bfb0",
+      "action_color": "#80b8c0"
     },
     "Verali": {
       "portrait": "29517c7a",
@@ -88,7 +101,9 @@
       "bubble_bg_color": "#2a203c",
       "bubble_bg_opacity": null,
       "bubble_css": null,
-      "theme_url": null
+      "theme_url": null,
+      "action_color": "#afb5fd",
+      "quote_color": "#addbc4"
     }
   },
   "structure": [
@@ -490,7 +505,10 @@
       "bubble_bg_opacity": null,
       "bubble_css": null,
       "music_url": null,
-      "sting_url": null
+      "sting_url": null,
+      "quote_color": null,
+      "sq_color": null,
+      "action_color": null
     },
     "2026-05-08T19:52:22.185Z": {
       "msg_index": 7,
