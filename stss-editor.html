@@ -2185,6 +2185,9 @@
           if (parsed !== null && STSS.isAiccExport(parsed)) {
             result = STSS.ingestAicc(text, project);
             formatLabel = "AICC";
+          } else if (parsed !== null && STSS.isLumiverseExport(parsed)) {
+            result = STSS.ingestLumiverse(text, project);
+            formatLabel = "Lumiverse";
           } else {
             result = STSS.ingestJsonl(text, project);
             if (result.isChub) formatLabel = "Chub";
