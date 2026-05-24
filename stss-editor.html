@@ -2188,6 +2188,9 @@
           } else if (parsed !== null && STSS.isLumiverseExport(parsed)) {
             result = STSS.ingestLumiverse(text, project);
             formatLabel = "Lumiverse";
+          } else if (parsed !== null && STSS.isRisuExport(parsed)) {
+            result = STSS.ingestRisu(text, project);
+            formatLabel = "Risu";
           } else {
             result = STSS.ingestJsonl(text, project);
             if (result.isChub) formatLabel = "Chub";
