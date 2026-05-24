@@ -13,6 +13,12 @@ https://8u6man.github.io/SillyReader/stss-reader
 
 https://github.com/8u6man/SillyReader/blob/main/EDITOR_GUIDE.md
 
+<img width="1919" height="827" alt="Screenshot 2026-05-24 124552" src="https://github.com/user-attachments/assets/49556c73-5462-47ea-a7c8-4b5154ebb04f" />
+
+<img width="1919" height="827" alt="Screenshot 2026-05-24 124636" src="https://github.com/user-attachments/assets/91281b8c-19f5-419e-9a44-d380355daac7" />
+
+
+
 # This app allows you to:
 - Import .jsonl SillyTavern exports
 - Assign Global > Character > Message styles (including portraits and backgrounds)
