@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silly Reader Submission Form Generator</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --border:    #272d3f;
+      --accent:    #7c9ef5;
+      --accent2:   #c084fc;
+      --text:      #d4daf0;
+      --muted:     #5a6480;
+      --success:   #4ade80;
+      --radius:    8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+
+    header {
+      max-width: 760px;
+      margin: 0 auto 2.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.25rem;
+    }
+
+    header h1 {
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      font-size: 1.1rem;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+
+    header p {
+      margin-top: 0.35rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .tabs {
+      max-width: 760px;
+      margin: 0 auto 1.75rem;
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 0.55rem 1.1rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .panel {
+      display: none;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 0.75rem;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+
+    .field-row:last-child { margin-bottom: 0; }
+
+    label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding-top: 0.6rem;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 300;
+      padding: 0.5rem 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+      resize: vertical;
+    }
+
+    input[type="text"]:focus,
+    input[type="url"]:focus,
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    /* Tags input */
+    .tags-wrapper {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.4rem 0.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+      transition: border-color 0.15s;
+    }
+
+    .tags-wrapper:focus-within { border-color: var(--accent); }
+
+    .tag-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      border-radius: 100px;
+      padding: 0.15rem 0.55rem 0.15rem 0.65rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent);
+    }
+
+    .tag-pill button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--accent);
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 0;
+      opacity: 0.6;
+      transition: opacity 0.1s;
+    }
+
+    .tag-pill button:hover { opacity: 1; }
+
+    .tag-input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 300;
+      min-width: 100px;
+      flex: 1;
+      padding: 0.2rem 0.25rem;
+    }
+
+    .tag-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+      font-style: italic;
+    }
+
+    /* Output */
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+
+    .output-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .copy-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      padding: 0.25rem 0.65rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+
+    .copy-btn.copied {
+      color: var(--success);
+      border-color: var(--success);
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      line-height: 1.65;
+      color: var(--text);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    /* Syntax coloring */
+    .j-key   { color: var(--accent); }
+    .j-str   { color: #a5d6a7; }
+    .j-arr   { color: var(--accent2); }
+    .j-brace { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Silly Reader Submission Form Generator</h1>
+  <p>Generates entry objects ready to slot into the masterlist or an author index.</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('masterlist', this)">Masterlist entry</button>
+  <button class="tab-btn" onclick="switchTab('author', this)">Author index entry</button>
+</div>
+
+<!-- MASTERLIST PANEL -->
+<div id="panel-masterlist" class="panel active">
+  <div class="card">
+    <div class="card-title">Fields</div>
+
+    <div class="field-row">
+      <label for="ml-name">name</label>
+      <input type="text" id="ml-name" placeholder="Wren" oninput="buildMasterlist()">
+    </div>
+
+    <div class="field-row">
+      <label for="ml-url">url</label>
+      <input type="url" id="ml-url" placeholder="https://raw.githubusercontent.com/…/index.json" oninput="buildMasterlist()">
+    </div>
+  </div>
+
+  <div>
+    <div class="output-header">
+      <span class="output-label">Output</span>
+      <button class="copy-btn" id="copy-ml" onclick="copyOutput('ml-output', 'copy-ml')">copy</button>
+    </div>
+    <pre id="ml-output">{
+  <span class="j-key">"name"</span>: <span class="j-str">""</span>,
+  <span class="j-key">"url"</span>:  <span class="j-str">""</span>
+}</pre>
+  </div>
+</div>
+
+<!-- AUTHOR PANEL -->
+<div id="panel-author" class="panel">
+  <div class="card">
+    <div class="card-title">Fields</div>
+
+    <div class="field-row">
+      <label for="au-title">title</label>
+      <input type="text" id="au-title" placeholder="Sins of Sincerity" oninput="buildAuthor()">
+    </div>
+
+    <div class="field-row">
+      <label for="au-url">url</label>
+      <input type="url" id="au-url" placeholder="https://raw.githubusercontent.com/…/story.json" oninput="buildAuthor()">
+    </div>
+
+    <div class="field-row">
+      <label for="au-desc">description</label>
+      <textarea id="au-desc" rows="4" placeholder="A brief summary of the story…" oninput="buildAuthor()"></textarea>
+    </div>
+
+    <div class="field-row">
+      <label>tags</label>
+      <div>
+        <div class="tags-wrapper" id="tags-wrapper" onclick="document.getElementById('tag-input').focus()">
+          <input
+            type="text"
+            id="tag-input"
+            class="tag-input"
+            placeholder="Type a tag, press Enter or comma"
+            onkeydown="handleTagKey(event)"
+          >
+        </div>
+        <p class="tag-hint">Enter or , to add &nbsp;·&nbsp; Backspace to remove last</p>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="output-header">
+      <span class="output-label">Output</span>
+      <button class="copy-btn" id="copy-au" onclick="copyOutput('au-output', 'copy-au')">copy</button>
+    </div>
+    <pre id="au-output">{
+  <span class="j-key">"title"</span>:       <span class="j-str">""</span>,
+  <span class="j-key">"url"</span>:         <span class="j-str">""</span>,
+  <span class="j-key">"description"</span>: <span class="j-str">""</span>,
+  <span class="j-key">"tags"</span>:        <span class="j-arr">[]</span>
+}</pre>
+  </div>
+</div>
+
+<script>
+  // ── Tab switching ──────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function esc(str) {
+    return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function highlight(json) {
+    // Colorise keys, string values, and structural tokens
+    return json
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"((?:[^"\\]|\\.)*)"\s*:/g,
+        '<span class="j-key">"$1"</span>:')
+      .replace(/:\s*"((?:[^"\\]|\\.)*)"/g,
+        ': <span class="j-str">"$1"</span>')
+      .replace(/\[([^\]]*)\]/gs, (_, inner) =>
+        '<span class="j-arr">[' + inner + ']</span>')
+      .replace(/[{}]/g, m => '<span class="j-brace">' + m + '</span>');
+  }
+
+  // ── Masterlist builder ─────────────────────────────────────────────────────
+  function buildMasterlist() {
+    const name = document.getElementById('ml-name').value;
+    const url  = document.getElementById('ml-url').value;
+
+    const raw = `{\n  "name": "${esc(name)}",\n  "url":  "${esc(url)}"\n}`;
+    document.getElementById('ml-output').innerHTML = highlight(raw);
+  }
+
+  // ── Tags state ─────────────────────────────────────────────────────────────
+  const tags = [];
+
+  function renderTags() {
+    const wrapper = document.getElementById('tags-wrapper');
+    const input   = document.getElementById('tag-input');
+    // Remove existing pills
+    wrapper.querySelectorAll('.tag-pill').forEach(el => el.remove());
+    // Re-insert pills before the input
+    tags.forEach((tag, i) => {
+      const pill = document.createElement('span');
+      pill.className = 'tag-pill';
+      pill.innerHTML = `${tag} <button type="button" aria-label="Remove ${tag}" onclick="removeTag(${i})">×</button>`;
+      wrapper.insertBefore(pill, input);
+    });
+    buildAuthor();
+  }
+
+  function addTag(raw) {
+    const val = raw.trim();
+    if (val && !tags.includes(val)) {
+      tags.push(val);
+      renderTags();
+    }
+  }
+
+  function removeTag(i) {
+    tags.splice(i, 1);
+    renderTags();
+  }
+
+  function handleTagKey(e) {
+    const input = e.target;
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(input.value.replace(/,$/, ''));
+      input.value = '';
+    } else if (e.key === 'Backspace' && input.value === '' && tags.length) {
+      removeTag(tags.length - 1);
+    }
+  }
+
+  // ── Author index builder ───────────────────────────────────────────────────
+  function buildAuthor() {
+    const title = document.getElementById('au-title').value;
+    const url   = document.getElementById('au-url').value;
+    const desc  = document.getElementById('au-desc').value;
+
+    const tagsStr = tags.length
+      ? tags.map(t => `"${esc(t)}"`).join(', ')
+      : '';
+
+    const raw =
+`{
+  "title":       "${esc(title)}",
+  "url":         "${esc(url)}",
+  "description": "${esc(desc)}",
+  "tags":        [${tagsStr}]
+}`;
+    document.getElementById('au-output').innerHTML = highlight(raw);
+  }
+
+  // ── Copy to clipboard ──────────────────────────────────────────────────────
+  function copyOutput(preId, btnId) {
+    const text = document.getElementById(preId).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById(btnId);
+      btn.textContent = 'copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 1800);
+    });
+  }
+</script>
+</body>
+</html>
