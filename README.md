@@ -53,6 +53,7 @@ Both run entirely in your browser. No account, no server, no install.
 *Additional Supported Export Types*
 
 - Lumiverse `.json`
+- Risu `.json`
 - Perchance ACC `.json`
 - Chub Venus `.jsonl`
 

@@ -648,6 +648,95 @@ function ingestLumiverse(jsonText, project) {
 }
 
 // ---------------------------------------------------------------------------
+// SECTION 3D: RISU PARSER
+// Handles JSON exports from RisuAI.
+// Format: { type: "risuChat", ver: 2, data: { message: [ { role, data, chatId, ... } ] } }
+// "chatId" is used as the unique dict key for all messages (user and char alike).
+// Character names are not present in this format; placeholders "User" and "Char"
+// are assigned by role and must remain consistent across re-imports for dedup to work.
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects whether a parsed JSON object looks like a RisuAI chat export.
+ *
+ * @param {object} root
+ * @returns {boolean}
+ */
+function isRisuExport(root) {
+  return (
+    root &&
+    root.type === "risuChat" &&
+    root.data &&
+    Array.isArray(root.data.message)
+  );
+}
+
+/**
+ * Parses a RisuAI JSON export object into a normalised message list
+ * compatible with importMessages().
+ *
+ * Each message uses its "chatId" UUID as send_date (the unique dict key).
+ * Names are assigned by role: "User" for role:"user", "Char" for role:"char".
+ * These placeholders are intentionally stable so re-import dedup works correctly.
+ *
+ * @param {object} root - Parsed Risu JSON root object
+ * @returns {{ chatMeta: object, messages: object[] }}
+ */
+function parseRisu(root) {
+  const messages = [];
+
+  for (const row of root.data.message) {
+    if (!row.chatId) {
+      console.warn("stss-core (Risu): message missing chatId, skipping:", row);
+      continue;
+    }
+
+    const isUser = row.role === "user";
+
+    messages.push({
+      send_date:    row.chatId,
+      name:         isUser ? "User" : "Char",
+      is_user:      isUser,
+      is_system:    false,
+      mes:          row.data || "",
+      extra:        {},
+      force_avatar: null,
+    });
+  }
+
+  const chatMeta = {
+    source: "risu",
+  };
+
+  return { chatMeta, messages };
+}
+
+/**
+ * Convenience: parse + import a RisuAI export in one call.
+ * Mirrors the signature of ingestJsonl() for drop-in use in the editor.
+ *
+ * @param {string} jsonText  - Raw file text
+ * @param {object} project   - Mutated in place
+ * @returns {{ chatMeta: object, added: number, skipped: number }}
+ */
+function ingestRisu(jsonText, project) {
+  let root;
+  try {
+    root = JSON.parse(jsonText);
+  } catch (e) {
+    throw new Error("Risu import: invalid JSON — " + e.message);
+  }
+
+  if (!isRisuExport(root)) {
+    throw new Error("Risu import: file does not look like a RisuAI export.");
+  }
+
+  const { chatMeta, messages } = parseRisu(root);
+  const { added, skipped }     = importMessages(project, messages);
+  return { chatMeta, added, skipped };
+}
+
+// ---------------------------------------------------------------------------
 // SECTION 4: STYLE RESOLVER
 // Global > Character > Message inheritance chain.
 // ---------------------------------------------------------------------------
@@ -950,6 +1039,9 @@ if (typeof window !== "undefined") {
     parseLumiverse,
     isLumiverseExport,
     ingestLumiverse,
+    parseRisu,
+    isRisuExport,
+    ingestRisu,
     // Style resolution
     resolveStyle,
     INHERITABLE_FIELDS,
@@ -978,6 +1070,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseJsonl, importMessages, ingestJsonl,
     parseAicc, isAiccExport, ingestAicc,
     parseLumiverse, isLumiverseExport, ingestLumiverse,
+    parseRisu, isRisuExport, ingestRisu,
     resolveStyle, INHERITABLE_FIELDS,
     createPreset, applyPreset, deletePreset, PRESET_FIELDS,
     findNodeById, getFlatMessageOrder, isLeafNode,

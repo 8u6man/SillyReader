@@ -28,6 +28,7 @@ Drag your `.jsonl` file onto the **Import .jsonl** zone in the left sidebar, or 
 *(Additional Supported Formats)*
 
 - Lumiverse `.json`
+- Risu `.json`
 - Perchance ACC `.json`
 - Chub Venus `.jsonl`
 
