@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Silly Reader Submission Form Generator</title>
+  <title>SillyReader Submission Form Generator</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap');
 
@@ -12,12 +12,14 @@
     :root {
       --bg:        #0f1117;
       --surface:   #181c27;
+      --surface2:  #1e2435;
       --border:    #272d3f;
       --accent:    #7c9ef5;
       --accent2:   #c084fc;
       --text:      #d4daf0;
       --muted:     #5a6480;
       --success:   #4ade80;
+      --danger:    #f87171;
       --radius:    8px;
     }
 
@@ -156,6 +158,7 @@
       gap: 0.4rem;
       align-items: center;
       transition: border-color 0.15s;
+      cursor: text;
     }
 
     .tags-wrapper:focus-within { border-color: var(--accent); }
@@ -207,6 +210,103 @@
       font-style: italic;
     }
 
+    /* Story list */
+    .story-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .story-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .story-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .story-item-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .story-item-tags {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .story-item-remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0.1rem;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+
+    .story-item-remove:hover { color: var(--danger); }
+
+    /* Add story form */
+    .story-form {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .story-form-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 1rem;
+    }
+
+    .add-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+      border-radius: 5px;
+      color: var(--accent);
+      padding: 0.5rem 1.1rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      transition: background 0.15s, border-color 0.15s;
+      width: 100%;
+    }
+
+    .add-btn:hover {
+      background: color-mix(in srgb, var(--accent) 20%, transparent);
+      border-color: var(--accent);
+    }
+
+    .empty-stories {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-style: italic;
+      padding: 0.5rem 0;
+    }
+
     /* Output */
     .output-header {
       display: flex;
@@ -256,26 +356,24 @@
       white-space: pre;
     }
 
-    /* Syntax coloring */
     .j-key   { color: var(--accent); }
     .j-str   { color: #a5d6a7; }
-    .j-arr   { color: var(--accent2); }
-    .j-brace { color: var(--muted); }
+    .j-punct { color: var(--muted); }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>Silly Reader Submission Form Generator</h1>
+  <h1>SillyReader Submission Form Generator</h1>
   <p>Generates entry objects ready to slot into the masterlist or an author index.</p>
 </header>
 
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('masterlist', this)">Masterlist entry</button>
-  <button class="tab-btn" onclick="switchTab('author', this)">Author index entry</button>
+  <button class="tab-btn" onclick="switchTab('author', this)">Author index</button>
 </div>
 
-<!-- MASTERLIST PANEL -->
+<!-- ── MASTERLIST PANEL ─────────────────────────────────────────────────── -->
 <div id="panel-masterlist" class="panel active">
   <div class="card">
     <div class="card-title">Fields</div>
@@ -296,66 +394,88 @@
       <span class="output-label">Output</span>
       <button class="copy-btn" id="copy-ml" onclick="copyOutput('ml-output', 'copy-ml')">copy</button>
     </div>
-    <pre id="ml-output">{
+    <pre id="ml-output"><span class="j-punct">{</span>
   <span class="j-key">"name"</span>: <span class="j-str">""</span>,
   <span class="j-key">"url"</span>:  <span class="j-str">""</span>
-}</pre>
+<span class="j-punct">}</span></pre>
   </div>
 </div>
 
-<!-- AUTHOR PANEL -->
+<!-- ── AUTHOR PANEL ─────────────────────────────────────────────────────── -->
 <div id="panel-author" class="panel">
+
+  <!-- Author name (top-level, entered once) -->
   <div class="card">
-    <div class="card-title">Fields</div>
-
+    <div class="card-title">Author</div>
     <div class="field-row">
-      <label for="au-title">title</label>
-      <input type="text" id="au-title" placeholder="Sins of Sincerity" oninput="buildAuthor()">
-    </div>
-
-    <div class="field-row">
-      <label for="au-url">url</label>
-      <input type="url" id="au-url" placeholder="https://raw.githubusercontent.com/…/story.json" oninput="buildAuthor()">
-    </div>
-
-    <div class="field-row">
-      <label for="au-desc">description</label>
-      <textarea id="au-desc" rows="4" placeholder="A brief summary of the story…" oninput="buildAuthor()"></textarea>
-    </div>
-
-    <div class="field-row">
-      <label>tags</label>
-      <div>
-        <div class="tags-wrapper" id="tags-wrapper" onclick="document.getElementById('tag-input').focus()">
-          <input
-            type="text"
-            id="tag-input"
-            class="tag-input"
-            placeholder="Type a tag, press Enter or comma"
-            onkeydown="handleTagKey(event)"
-          >
-        </div>
-        <p class="tag-hint">Enter or , to add &nbsp;·&nbsp; Backspace to remove last</p>
-      </div>
+      <label for="au-author">author</label>
+      <input type="text" id="au-author" placeholder="Wren" oninput="buildAuthor()">
     </div>
   </div>
 
+  <!-- Story builder -->
+  <div class="card">
+    <div class="card-title">Stories</div>
+
+    <!-- Added stories list -->
+    <div class="story-list" id="story-list">
+      <p class="empty-stories" id="story-empty">No stories added yet.</p>
+    </div>
+
+    <!-- New story form -->
+    <div class="story-form">
+      <div class="story-form-title">+ New story</div>
+
+      <div class="field-row">
+        <label for="sf-title">title</label>
+        <input type="text" id="sf-title" placeholder="Sins of Sincerity">
+      </div>
+
+      <div class="field-row">
+        <label for="sf-url">url</label>
+        <input type="url" id="sf-url" placeholder="https://raw.githubusercontent.com/…/story.json">
+      </div>
+
+      <div class="field-row">
+        <label for="sf-desc">description</label>
+        <textarea id="sf-desc" rows="3" placeholder="A brief summary of the story…"></textarea>
+      </div>
+
+      <div class="field-row">
+        <label>tags</label>
+        <div>
+          <div class="tags-wrapper" id="tags-wrapper" onclick="document.getElementById('tag-input').focus()">
+            <input
+              type="text"
+              id="tag-input"
+              class="tag-input"
+              placeholder="Type a tag, press Enter or comma"
+              onkeydown="handleTagKey(event)"
+            >
+          </div>
+          <p class="tag-hint">Enter or , to add &nbsp;·&nbsp; Backspace to remove last</p>
+        </div>
+      </div>
+
+      <button class="add-btn" onclick="addStory()">Add story to list</button>
+    </div>
+  </div>
+
+  <!-- Output -->
   <div>
     <div class="output-header">
       <span class="output-label">Output</span>
       <button class="copy-btn" id="copy-au" onclick="copyOutput('au-output', 'copy-au')">copy</button>
     </div>
-    <pre id="au-output">{
-  <span class="j-key">"title"</span>:       <span class="j-str">""</span>,
-  <span class="j-key">"url"</span>:         <span class="j-str">""</span>,
-  <span class="j-key">"description"</span>: <span class="j-str">""</span>,
-  <span class="j-key">"tags"</span>:        <span class="j-arr">[]</span>
-}</pre>
+    <pre id="au-output"><span class="j-punct">{</span>
+  <span class="j-key">"author"</span>:  <span class="j-str">""</span>,
+  <span class="j-key">"stories"</span>: <span class="j-punct">[]</span>
+<span class="j-punct">}</span></pre>
   </div>
 </div>
 
 <script>
-  // ── Tab switching ──────────────────────────────────────────────────────────
+  // ── Tab switching ────────────────────────────────────────────────────────
   function switchTab(name, btn) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -363,61 +483,58 @@
     btn.classList.add('active');
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Shared helpers ───────────────────────────────────────────────────────
   function esc(str) {
     return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
-  function highlight(json) {
-    // Colorise keys, string values, and structural tokens
-    return json
+  function highlight(raw) {
+    return raw
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"((?:[^"\\]|\\.)*)"\s*:/g,
-        '<span class="j-key">"$1"</span>:')
-      .replace(/:\s*"((?:[^"\\]|\\.)*)"/g,
-        ': <span class="j-str">"$1"</span>')
-      .replace(/\[([^\]]*)\]/gs, (_, inner) =>
-        '<span class="j-arr">[' + inner + ']</span>')
-      .replace(/[{}]/g, m => '<span class="j-brace">' + m + '</span>');
+      // keys
+      .replace(/"((?:[^"\\]|\\.)*)"\s*:/g, '<span class="j-key">"$1"</span>:')
+      // string values
+      .replace(/:\s*"((?:[^"\\]|\\.)*)"/g, ': <span class="j-str">"$1"</span>')
+      // array string items (tags)
+      .replace(/,\s*"((?:[^"\\]|\\.)*)"/g, ', <span class="j-str">"$1"</span>')
+      .replace(/\[\s*"((?:[^"\\]|\\.)*)"/g, '[<span class="j-str">"$1"</span>')
+      // punctuation
+      .replace(/[{}[\]]/g, m => '<span class="j-punct">' + m + '</span>');
   }
 
-  // ── Masterlist builder ─────────────────────────────────────────────────────
+  // ── Masterlist ───────────────────────────────────────────────────────────
   function buildMasterlist() {
     const name = document.getElementById('ml-name').value;
     const url  = document.getElementById('ml-url').value;
-
-    const raw = `{\n  "name": "${esc(name)}",\n  "url":  "${esc(url)}"\n}`;
+    const raw  = `{\n  "name": "${esc(name)}",\n  "url":  "${esc(url)}"\n}`;
     document.getElementById('ml-output').innerHTML = highlight(raw);
   }
 
-  // ── Tags state ─────────────────────────────────────────────────────────────
-  const tags = [];
+  // ── Tags (for the story form) ────────────────────────────────────────────
+  let currentTags = [];
 
   function renderTags() {
     const wrapper = document.getElementById('tags-wrapper');
     const input   = document.getElementById('tag-input');
-    // Remove existing pills
     wrapper.querySelectorAll('.tag-pill').forEach(el => el.remove());
-    // Re-insert pills before the input
-    tags.forEach((tag, i) => {
+    currentTags.forEach((tag, i) => {
       const pill = document.createElement('span');
       pill.className = 'tag-pill';
       pill.innerHTML = `${tag} <button type="button" aria-label="Remove ${tag}" onclick="removeTag(${i})">×</button>`;
       wrapper.insertBefore(pill, input);
     });
-    buildAuthor();
   }
 
   function addTag(raw) {
     const val = raw.trim();
-    if (val && !tags.includes(val)) {
-      tags.push(val);
+    if (val && !currentTags.includes(val)) {
+      currentTags.push(val);
       renderTags();
     }
   }
 
   function removeTag(i) {
-    tags.splice(i, 1);
+    currentTags.splice(i, 1);
     renderTags();
   }
 
@@ -427,32 +544,99 @@
       e.preventDefault();
       addTag(input.value.replace(/,$/, ''));
       input.value = '';
-    } else if (e.key === 'Backspace' && input.value === '' && tags.length) {
-      removeTag(tags.length - 1);
+    } else if (e.key === 'Backspace' && input.value === '' && currentTags.length) {
+      removeTag(currentTags.length - 1);
     }
   }
 
-  // ── Author index builder ───────────────────────────────────────────────────
-  function buildAuthor() {
-    const title = document.getElementById('au-title').value;
-    const url   = document.getElementById('au-url').value;
-    const desc  = document.getElementById('au-desc').value;
+  // ── Story list state ─────────────────────────────────────────────────────
+  let stories = [];
 
-    const tagsStr = tags.length
-      ? tags.map(t => `"${esc(t)}"`).join(', ')
-      : '';
+  function addStory() {
+    const title = document.getElementById('sf-title').value.trim();
+    const url   = document.getElementById('sf-url').value.trim();
+    const desc  = document.getElementById('sf-desc').value.trim();
+    const tags  = [...currentTags];
+
+    if (!title) {
+      document.getElementById('sf-title').focus();
+      return;
+    }
+
+    stories.push({ title, url, desc, tags });
+    renderStoryList();
+    buildAuthor();
+
+    // Clear the form
+    document.getElementById('sf-title').value = '';
+    document.getElementById('sf-url').value   = '';
+    document.getElementById('sf-desc').value  = '';
+    currentTags = [];
+    renderTags();
+  }
+
+  function removeStory(i) {
+    stories.splice(i, 1);
+    renderStoryList();
+    buildAuthor();
+  }
+
+  function renderStoryList() {
+    const list  = document.getElementById('story-list');
+    const empty = document.getElementById('story-empty');
+
+    // Remove old items (keep the empty notice element)
+    list.querySelectorAll('.story-item').forEach(el => el.remove());
+
+    if (stories.length === 0) {
+      empty.style.display = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    stories.forEach((s, i) => {
+      const item = document.createElement('div');
+      item.className = 'story-item';
+      item.innerHTML = `
+        <div class="story-item-info">
+          <div class="story-item-title">${s.title || '(untitled)'}</div>
+          <div class="story-item-tags">${s.tags.length ? s.tags.join(', ') : 'no tags'}</div>
+        </div>
+        <button class="story-item-remove" onclick="removeStory(${i})" title="Remove">×</button>
+      `;
+      list.insertBefore(item, empty);
+    });
+  }
+
+  // ── Author index builder ─────────────────────────────────────────────────
+  function buildAuthor() {
+    const author = document.getElementById('au-author').value;
+
+    const storiesJson = stories.map(s => {
+      const tagsStr = s.tags.map(t => `"${esc(t)}"`).join(', ');
+      return (
+        `    {\n` +
+        `      "title":       "${esc(s.title)}",\n` +
+        `      "url":         "${esc(s.url)}",\n` +
+        `      "description": "${esc(s.desc)}",\n` +
+        `      "tags":        [${tagsStr}]\n` +
+        `    }`
+      );
+    }).join(',\n');
 
     const raw =
 `{
-  "title":       "${esc(title)}",
-  "url":         "${esc(url)}",
-  "description": "${esc(desc)}",
-  "tags":        [${tagsStr}]
+  "author":  "${esc(author)}",
+  "stories": [
+${storiesJson}
+  ]
 }`;
+
     document.getElementById('au-output').innerHTML = highlight(raw);
   }
 
-  // ── Copy to clipboard ──────────────────────────────────────────────────────
+  // ── Copy to clipboard ────────────────────────────────────────────────────
   function copyOutput(preId, btnId) {
     const text = document.getElementById(preId).innerText;
     navigator.clipboard.writeText(text).then(() => {
